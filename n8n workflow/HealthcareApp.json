@@ -1,0 +1,563 @@
+{
+  "name": "HealthcareApp",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1264,
+        624
+      ],
+      "id": "ff9214df-3c86-48cc-b7f1-3911e5c9d747",
+      "name": "Google Gemini Chat Model",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}",
+        "contextWindowLength": 4
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -736,
+        352
+      ],
+      "id": "5711bd91-f151-40d6-8313-194bbda6ee9c",
+      "name": "Simple Memory",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.userMessage }}",
+        "options": {
+          "systemMessage": "You are HealthPulse, a helpful medical assistant chatbot for a hospital.\n\nIMPORTANT RULES:\n1. Your job is to help users understand their symptoms and get health guidance.\n2. When a user describes symptoms, ALWAYS search the disease knowledge base first.\n3. Only search patient data when the user asks about their appointments, bills, prescriptions, or medical history.\n4. NEVER use the session ID as a search term — it is a technical identifier, ignore it completely.\n5. If the user says things like \"I have fever\", \"I feel pain\", \"my throat hurts\" — these are symptom descriptions. Search the disease KB.\n6. Always end responses with: \"This is not a medical diagnosis. Please consult a doctor.\"\n7. Keep responses warm, simple, and clear.\n\nRESPONSE FORMAT for symptoms:\n- Possible condition(s) this may indicate\n- Severity: <number only 1-5>\n- What you can do at home right now\n- OTC medications that may help\n- When to see a doctor\n- Whether it is contagious"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -768,
+        112
+      ],
+      "id": "151ee3f8-595b-4908-9527-1e1532610975",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to read the 'Uttarakhand Encyclopedia'. This tool returns the full text of the document including sections on Jagar, folk culture, and history. ALWAYS call this tool first when asked about Uttarakhand.",
+        "operation": "get",
+        "documentURL": "https://docs.google.com/document/d/1G7vOdyPxj2KoPByVVyz3IspJBQk9g5Ti_9qOkxYjpY8/edit?tab=t.0"
+      },
+      "type": "n8n-nodes-base.googleDocsTool",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        656
+      ],
+      "id": "7892f29a-ce87-4a95-82e2-1fd32376a62c",
+      "name": "Get a document in Google Docs"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1328,
+        128
+      ],
+      "id": "a1d46fb6-30ef-409d-9209-08e4d704d138",
+      "name": "Webhook",
+      "webhookId": "cbbaa326-93e4-40f5-bdd8-97cc90b0ba73"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-robotics-er-1.5-preview",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1392,
+        528
+      ],
+      "id": "6b1f424d-c599-4faa-a8c1-e8a3bc90f945",
+      "name": "Google Gemini Chat Model1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "acf9af25-8d62-42e7-8bc9-1f2970b2de73",
+              "name": "userMessage",
+              "value": "={{ $json.body.message }}",
+              "type": "string"
+            },
+            {
+              "id": "65492a63-6d69-43f5-b88a-39b20d028673",
+              "name": "patientId",
+              "value": "={{ $json.body.patientId }}",
+              "type": "string"
+            },
+            {
+              "id": "cbb1546c-f9db-471f-a1cf-4e8012edccd8",
+              "name": "sessionId",
+              "value": "={{ $json.body.sessionId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1072,
+        128
+      ],
+      "id": "13afa96a-ab70-4c68-8283-f87f0b9e86f0",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Returns patient demographics, blood group, age, existing conditions.",
+        "url": "=http://host.docker.internal:8000/api/patients/{{ $json.patientId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        112,
+        672
+      ],
+      "id": "52d0d3d8-25b0-442f-b23d-8258e784415b",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/api/notifications",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"URGENT: High severity symptom reported\",\n  \"message\": \"{{ $('Edit Fields').item.json.userMessage }}\",\n  \"type\": \"urgent\",\n  \"read\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0cb7fb3a-d3b0-44c7-9a16-6e71272f03bf",
+      "name": "HTTP Request2",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "xZiZKYAJl44m1mGq",
+          "name": "60day"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $('AI Agent').item.json.output }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        176,
+        176
+      ],
+      "id": "fbf31819-6874-4aaf-b73c-35c52d657ddf",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Returns patient demographics, blood group, age, existing conditions.",
+        "url": "=http://host.docker.internal:8000/api/appointments?patientId={{ $json.patientId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -288,
+        448
+      ],
+      "id": "20cfde9a-e7e5-4ea1-acf1-12577f4a6cd0",
+      "name": "Get Patient Data",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "xYwBF8MzspSrkMjZ",
+          "name": "60day"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $('AI Agent').item.json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        288,
+        16
+      ],
+      "id": "f02df84c-87c5-4620-956d-c6c70d9b25f9",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1Liaulltim9ZFjJH1tiqvil_pKPFVN26B3mKbBcLiPcs/edit?usp=sharing",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Liaulltim9ZFjJH1tiqvil_pKPFVN26B3mKbBcLiPcs/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        -848,
+        624
+      ],
+      "id": "6101c12e-4ba3-468a-8afe-0826c77624da",
+      "name": "search_disease_kb"
+    },
+    {
+      "parameters": {
+        "description": "RAG to find out relevant disease from supabase.",
+        "workflowId": {
+          "__rl": true,
+          "value": "fUnvCs5huKGTVnLD",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/fUnvCs5huKGTVnLD",
+          "cachedResultName": "search_disease_kb"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "input": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('input', `This will accept the symptoms of the disease  separated by the comma`, 'string') }}"
+          },
+          "matchingColumns": [
+            "input"
+          ],
+          "schema": [
+            {
+              "id": "input",
+              "displayName": "input",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        -528,
+        368
+      ],
+      "id": "7257848f-0d38-497c-9597-fe83931c9442",
+      "name": "search_disease_kb1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "24edb85c-9116-4313-badd-dfab1c330276",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": ".*severity\\s*[45].*",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -368,
+        112
+      ],
+      "id": "1748e666-c0e6-48d8-930a-ec7cc771a01b",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/api/notifications",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"Chatbot consultation\",\n  \"message\": \"Patient query: {{ $('Edit Fields').item.json.userMessage }} \",\n  \"type\": \"info\",\n  \"read\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -112,
+        320
+      ],
+      "id": "0e4bae7e-f593-44d4-88fe-7e479194ce28",
+      "name": "Send response"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.1-8b-instant",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        288
+      ],
+      "id": "6333ae7d-3d75-429c-8988-386716c0e879",
+      "name": "Groq Chat Model1",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "groqApi": {
+          "id": "Zf5F9MEko2Cmsiv8",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -944,
+        496
+      ],
+      "id": "59ebddac-2788-40de-a792-542dfb43cd43",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "hzFxalWATc5VEO41",
+          "name": "Groq account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "localhost:5678",
+            "connection": "keep-alive",
+            "content-length": "147",
+            "sec-ch-ua-platform": "\"Windows\"",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+            "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+            "content-type": "application/json",
+            "sec-ch-ua-mobile": "?0",
+            "accept": "*/*",
+            "origin": "http://localhost:5173",
+            "sec-fetch-site": "same-site",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-dest": "empty",
+            "referer": "http://localhost:5173/",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB,en-US;q=0.9,en;q=0.8,hi;q=0.7"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "message": "I have symptoms like Pain starting around navel moving , vomiting, fever, loss of appetite",
+            "sessionId": "session_1776757040963_zwpvic"
+          },
+          "webhookUrl": "http://localhost:5678/webhook/chat",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Patient Data": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search_disease_kb1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "adc057f8-42c0-4d9a-a5fc-3a84d4c3c25e",
+  "meta": {
+    "instanceId": "1135c7cfd4944b4367e25ec3e1051f8126c80d170073cdac78fc3c016ff5730a"
+  },
+  "id": "DdLMcis6VbTuvknP",
+  "tags": []
+}

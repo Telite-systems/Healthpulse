@@ -1,0 +1,135 @@
+{
+  "name": "search_disease_kb",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "input"
+            }
+          ]
+        }
+      },
+      "id": "f5e7ca3c-3408-4227-94c2-7c60502f6a18",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        0,
+        0
+      ],
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://yusmodvtqaokzwcpsyie.supabase.co/rest/v1/rpc/match_diseases_safe",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SECRET_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query_embedding",
+              "value": "={{$json.embedding}}"
+            },
+            {
+              "name": "match_count",
+              "value": "3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        544,
+        144
+      ],
+      "id": "d3ffb0b3-a920-4dd1-9978-38e32c660dec",
+      "name": "Supabase-MatchRequest"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8001/embed",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.input }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        336,
+        144
+      ],
+      "id": "e828cb15-f76b-48e9-ac5c-31ee6e0763a2",
+      "name": "Search Symptom KB4"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Search Symptom KB4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Symptom KB4": {
+      "main": [
+        [
+          {
+            "node": "Supabase-MatchRequest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "62558e1c-9c40-466f-8ee2-1b01e05d174e",
+  "meta": {
+    "instanceId": "1135c7cfd4944b4367e25ec3e1051f8126c80d170073cdac78fc3c016ff5730a"
+  },
+  "id": "Wklz4yuzvyRAReyi",
+  "tags": []
+}

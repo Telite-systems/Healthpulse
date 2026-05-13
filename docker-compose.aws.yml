@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./healthcare-backend
+      dockerfile: Dockerfile
+    container_name: healthpulse-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=${APP_NAME}
+      - APP_VERSION=${APP_VERSION}
+      - DEBUG=${DEBUG}
+      - HOST=${HOST}
+      - PORT=${PORT}
+      - MONGODB_URL=${MONGODB_URL}
+      - MONGODB_DB_NAME=${MONGODB_DB_NAME}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - LOG_LEVEL=${LOG_LEVEL}
+
+  frontend:
+    build:
+      context: ./healthcare-app
+      dockerfile: Dockerfile
+    container_name: healthpulse-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: healthpulse-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL}
+      - NODE_ENV=production
+      - WEBHOOK_TUNNEL_URL=${WEBHOOK_TUNNEL_URL}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n\ workflow:/home/node/.n8n/workflows
+
+volumes:
+  n8n_data:
