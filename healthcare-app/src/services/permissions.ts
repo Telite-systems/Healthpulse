@@ -1,96 +1,207 @@
 // ============================================
-// Role-Based Permissions System
-// Granular access control for all features
+// Role-Based Security System
+// Covers Admin, Doctor, Staff, Patient
+// with feature-level + data-level permissions
 // ============================================
 
-export type Role = 'Admin' | 'Doctor' | 'Staff';
+export type Role = 'Admin' | 'Doctor' | 'Staff' | 'Patient';
 
 export interface Permission {
-  view: boolean;
+  view:   boolean;
   create: boolean;
-  edit: boolean;
+  edit:   boolean;
   delete: boolean;
 }
 
-export interface RolePermissions {
-  dashboard: Permission;
-  patients: Permission;
-  doctors: Permission;
-  staff: Permission;
-  departments: Permission;
-  appointments: Permission;
-  visits: Permission;
-  billing: Permission;
-  prescriptions: Permission;
-  reports: Permission;
-  settings: Permission;
-  telemedicine: Permission;
-  chatbot: Permission;
-}
+export type Resource =
+  | 'dashboard' | 'patients' | 'doctors' | 'staff' | 'departments'
+  | 'appointments' | 'visits' | 'billing' | 'prescriptions'
+  | 'reports' | 'settings' | 'telemedicine' | 'chatbot' | 'helpCenter'
+  | 'ownRecords' | 'bookAppointment' | 'notifications';
+
+export type RolePermissions = Record<Resource, Permission>;
+
+const FULL:  Permission = { view: true,  create: true,  edit: true,  delete: true  };
+const READ:  Permission = { view: true,  create: false, edit: false, delete: false };
+const WRITE: Permission = { view: true,  create: true,  edit: true,  delete: false };
+const NONE:  Permission = { view: false, create: false, edit: false, delete: false };
 
 const PERMISSIONS: Record<Role, RolePermissions> = {
   Admin: {
-    dashboard: { view: true, create: true, edit: true, delete: true },
-    patients: { view: true, create: true, edit: true, delete: true },
-    doctors: { view: true, create: true, edit: true, delete: true },
-    staff: { view: true, create: true, edit: true, delete: true },
-    departments: { view: true, create: true, edit: true, delete: true },
-    appointments: { view: true, create: true, edit: true, delete: true },
-    visits: { view: true, create: true, edit: true, delete: false },
-    billing: { view: true, create: true, edit: true, delete: true },
-    prescriptions: { view: true, create: true, edit: true, delete: true },
-    reports: { view: true, create: false, edit: false, delete: false },
-    settings: { view: true, create: true, edit: true, delete: true },
-    telemedicine: { view: true, create: true, edit: true, delete: false },
-    chatbot: { view: true, create: true, edit: true, delete: false },
+    dashboard:       FULL,
+    patients:        FULL,
+    doctors:         FULL,
+    staff:           FULL,
+    departments:     FULL,
+    appointments:    FULL,
+    visits:          WRITE,
+    billing:         FULL,
+    prescriptions:   FULL,
+    reports:         READ,
+    settings:        FULL,
+    telemedicine:    WRITE,
+    chatbot:         WRITE,
+    helpCenter:      FULL,
+    ownRecords:      READ,
+    bookAppointment: FULL,
+    notifications:   READ,
   },
   Doctor: {
-    dashboard: { view: true, create: false, edit: false, delete: false },
-    patients: { view: true, create: true, edit: true, delete: false },
-    doctors: { view: true, create: false, edit: false, delete: false },
-    staff: { view: true, create: false, edit: false, delete: false },
-    departments: { view: true, create: false, edit: false, delete: false },
-    appointments: { view: true, create: true, edit: true, delete: false },
-    visits: { view: true, create: true, edit: true, delete: false },
-    billing: { view: true, create: false, edit: false, delete: false },
-    prescriptions: { view: true, create: true, edit: true, delete: false },
-    reports: { view: true, create: false, edit: false, delete: false },
-    settings: { view: true, create: false, edit: true, delete: false },
-    telemedicine: { view: true, create: true, edit: true, delete: false },
-    chatbot: { view: true, create: true, edit: false, delete: false },
+    dashboard:       READ,
+    patients:        WRITE,
+    doctors:         READ,
+    staff:           READ,
+    departments:     READ,
+    appointments:    WRITE,
+    visits:          WRITE,
+    billing:         READ,
+    prescriptions:   WRITE,
+    reports:         READ,
+    settings:        { view: true, create: false, edit: true, delete: false },
+    telemedicine:    WRITE,
+    chatbot:         WRITE,
+    helpCenter:      READ,
+    ownRecords:      READ,
+    bookAppointment: { view: true, create: true, edit: false, delete: false },
+    notifications:   READ,
   },
   Staff: {
-    dashboard: { view: true, create: false, edit: false, delete: false },
-    patients: { view: true, create: true, edit: true, delete: false },
-    doctors: { view: true, create: false, edit: false, delete: false },
-    staff: { view: true, create: false, edit: false, delete: false },
-    departments: { view: true, create: false, edit: false, delete: false },
-    appointments: { view: true, create: true, edit: true, delete: false },
-    visits: { view: true, create: false, edit: false, delete: false },
-    billing: { view: true, create: true, edit: false, delete: false },
-    prescriptions: { view: true, create: false, edit: false, delete: false },
-    reports: { view: false, create: false, edit: false, delete: false },
-    settings: { view: true, create: false, edit: true, delete: false },
-    telemedicine: { view: false, create: false, edit: false, delete: false },
-    chatbot: { view: true, create: true, edit: false, delete: false },
+    dashboard:       READ,
+    patients:        WRITE,
+    doctors:         READ,
+    staff:           READ,
+    departments:     READ,
+    appointments:    WRITE,
+    visits:          READ,
+    billing:         { view: true, create: true, edit: false, delete: false },
+    prescriptions:   READ,
+    reports:         NONE,
+    settings:        { view: true, create: false, edit: true, delete: false },
+    telemedicine:    NONE,
+    chatbot:         WRITE,
+    helpCenter:      READ,
+    ownRecords:      NONE,
+    bookAppointment: NONE,
+    notifications:   READ,
+  },
+  Patient: {
+    dashboard:       READ,
+    patients:        NONE,
+    doctors:         READ,
+    staff:           NONE,
+    departments:     NONE,
+    appointments:    NONE,
+    visits:          NONE,
+    billing:         READ,
+    prescriptions:   READ,
+    reports:         NONE,
+    settings:        { view: true, create: false, edit: true, delete: false },
+    telemedicine:    { view: true, create: true, edit: false, delete: false },
+    chatbot:         WRITE,
+    helpCenter:      READ,
+    ownRecords:      READ,
+    bookAppointment: { view: true, create: true, edit: false, delete: false },
+    notifications:   READ,
   },
 };
 
 export function getPermissions(role: Role): RolePermissions {
-  return PERMISSIONS[role] || PERMISSIONS.Staff;
+  return PERMISSIONS[role] ?? PERMISSIONS.Staff;
 }
 
-export function hasPermission(role: Role, resource: keyof RolePermissions, action: keyof Permission): boolean {
-  const perms = PERMISSIONS[role];
-  if (!perms) return false;
-  return perms[resource]?.[action] ?? false;
+export function hasPermission(role: Role, resource: Resource, action: keyof Permission): boolean {
+  return PERMISSIONS[role]?.[resource]?.[action] ?? false;
 }
 
-export function getRoleBadgeColor(role: Role): string {
+/** Returns list of routes this role can access */
+export function getAllowedRoutes(role: Role): string[] {
+  const base = ['/dashboard', '/dashboard/chatbot', '/dashboard/settings', '/dashboard/telemedicine', '/dashboard/help-center'];
+
+  if (role === 'Admin' || role === 'Staff')
+    return [...base, '/dashboard/master-data', '/dashboard/transaction-data', '/dashboard/reports'];
+
+  if (role === 'Doctor')
+    return [...base, '/dashboard/reports'];
+
+  if (role === 'Patient')
+    return [...base];
+
+  return base;
+}
+
+/** Returns formatted role display with color token */
+export function getRoleMeta(role: Role): { label: string; color: string; bg: string; icon: string } {
   switch (role) {
-    case 'Admin': return '#0ea5e9';
-    case 'Doctor': return '#8b5cf6';
-    case 'Staff': return '#10b981';
-    default: return '#64748b';
+    case 'Admin':   return { label: 'System Admin',    color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   icon: '🛡️' };
+    case 'Doctor':  return { label: 'Medical Doctor',  color: '#0891b2', bg: 'rgba(8,145,178,0.12)',   icon: '👨‍⚕️' };
+    case 'Patient': return { label: 'Patient Portal',  color: '#10b981', bg: 'rgba(16,185,129,0.12)', icon: '🏥' };
+    case 'Staff':   return { label: 'Hospital Staff',  color: '#6366f1', bg: 'rgba(99,102,241,0.12)', icon: '👩‍💼' };
+    default:        return { label: role,              color: '#64748b', bg: 'rgba(100,116,139,0.1)', icon: '👤' };
   }
 }
+
+/** Compatibility shim */
+export function getRoleBadgeColor(role: Role): string {
+  return getRoleMeta(role).color;
+}
+
+/** Check if a user can access a specific data record (data-level security) */
+export function canAccessRecord(
+  role: Role, userId: string,
+  record: { patientId?: string; doctorId?: string; ownerId?: string }
+): boolean {
+  if (role === 'Admin') return true;
+  if (role === 'Doctor') return true;           // can see all assigned patients
+  if (role === 'Patient') {
+    return (
+      record.patientId === userId ||
+      record.ownerId   === userId
+    );
+  }
+  if (role === 'Staff') return true;            // staff manages records
+  return false;
+}
+
+/** Audit action categories for logging */
+export type AuditAction =
+  | 'LOGIN' | 'LOGOUT'
+  | 'VIEW_RECORD' | 'CREATE_RECORD' | 'EDIT_RECORD' | 'DELETE_RECORD'
+  | 'BOOK_APPOINTMENT' | 'CANCEL_APPOINTMENT' | 'APPROVE_APPOINTMENT'
+  | 'WRITE_PRESCRIPTION' | 'VIEW_PRESCRIPTION'
+  | 'START_VIDEO_CALL' | 'END_VIDEO_CALL'
+  | 'SEND_CHAT' | 'ACCESS_DENIED';
+
+export interface AuditLog {
+  id: string;
+  userId: string;
+  role: Role;
+  action: AuditAction;
+  resource: string;
+  metadata?: Record<string, any>;
+  timestamp: number;
+  ip?: string;
+}
+
+class SecurityAuditLogger {
+  private logs: AuditLog[] = [];
+
+  log(entry: Omit<AuditLog, 'id' | 'timestamp'>): void {
+    this.logs.push({ ...entry, id: `audit_${Date.now()}`, timestamp: Date.now() });
+    if (this.logs.length > 500) this.logs.shift();
+    // In production: ship to backend audit API
+  }
+
+  getLogs(limit = 100): AuditLog[] {
+    return [...this.logs].reverse().slice(0, limit);
+  }
+
+  filterByUser(userId: string): AuditLog[] {
+    return this.logs.filter(l => l.userId === userId);
+  }
+
+  filterByAction(action: AuditAction): AuditLog[] {
+    return this.logs.filter(l => l.action === action);
+  }
+}
+
+export const auditLogger = new SecurityAuditLogger();

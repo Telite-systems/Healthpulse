@@ -46,6 +46,7 @@ services:
       - N8N_PROTOCOL=http
       - NODE_ENV=production
       - WEBHOOK_TUNNEL_URL=http://localhost:5678/
+      - SUPABASE_SECRET_KEY=${SUPABASE_SECRET_KEY}
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n\ workflow:/home/node/.n8n/workflows

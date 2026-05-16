@@ -1,136 +1,141 @@
 // ============================================
-// Hook: useRealtimeCollection
-// Subscribe to real-time collection changes
+// Realtime Collection Hook
+// Firebase-style useCollection / useDocument
 // ============================================
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { db } from '../services/realtimeDb';
-import { api } from '../services/api';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { db, type DbEvent, type DbStatus } from '../services/realtimeDb';
 
-interface UseRealtimeCollectionOptions {
+export interface CollectionOptions {
   searchQuery?: string;
-  sortField?: string;
-  sortDirection?: 'asc' | 'desc';
+  filterFn?: (item: any) => boolean;
 }
 
-interface UseRealtimeCollectionReturn<T> {
-  data: T[];
-  loading: boolean;
-  error: string | null;
-  add: (item: T) => Promise<void>;
-  update: (id: string, updates: Partial<T>) => Promise<void>;
-  remove: (id: string) => Promise<void>;
+export interface CollectionState<T> {
+  data:             T[];
+  loading:          boolean;
+  error:            string | null;
+  status:           DbStatus;
+  connectionStatus: DbStatus;   // alias so both names work
+  add:     (item: T) => Promise<T>;
+  update:  (id: string, updates: Partial<T>) => Promise<T | null>;
+  remove:  (id: string) => Promise<boolean>;
   refresh: () => void;
-  connectionStatus: string;
-  lastUpdated: number | null;
 }
 
+/**
+ * Subscribe to a realtime collection with optional client-side search filtering.
+ *
+ * @example
+ *   const { data, loading, add } = useRealtimeCollection<Patient>('patients', { searchQuery: 'John' });
+ */
 export function useRealtimeCollection<T extends { id: string }>(
   collection: string,
-  options: UseRealtimeCollectionOptions = {}
-): UseRealtimeCollectionReturn<T> {
-  const [data, setData] = useState<T[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState('connected');
-  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
-  const mountedRef = useRef(true);
+  options?: CollectionOptions
+): CollectionState<T> {
+  const [rawData, setRawData] = useState<T[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
+  const [status,   setStatus]   = useState<DbStatus>('connected');
+  const refreshKey = useRef(0);
 
-  const { searchQuery, sortField, sortDirection = 'asc' } = options;
-
-  // Subscribe to real-time updates
   useEffect(() => {
-    mountedRef.current = true;
     setLoading(true);
-
-    const unsubscribe = db.onSnapshot<T>(collection, (newData) => {
-      if (!mountedRef.current) return;
-      setData(newData);
-      setLastUpdated(Date.now());
+    const unsub = db.onSnapshot<T>(collection, (rows, _evt: DbEvent<T>) => {
+      setRawData(rows);
       setLoading(false);
-      setError(null);
     });
+    const unsubStatus = db.onConnectionStatus(setStatus);
+    return () => { unsub(); unsubStatus(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collection, refreshKey.current]);
 
-    const unsubStatus = db.onConnectionStatus((status) => {
-      if (mountedRef.current) setConnectionStatus(status);
+  // Client-side search filtering
+  const data = useMemo(() => {
+    const q = options?.searchQuery?.toLowerCase().trim();
+    if (!q) return rawData;
+    return rawData.filter(item =>
+      Object.values(item).some(v =>
+        typeof v === 'string' && v.toLowerCase().includes(q)
+      )
+    );
+  }, [rawData, options?.searchQuery]);
+
+  const refresh = useCallback(() => { refreshKey.current++; }, []);
+
+  const add = useCallback(async (item: T): Promise<T> => {
+    try {
+      return await db.add<T>(collection, item);
+    } catch (e: any) {
+      setError(e?.message ?? 'Add failed');
+      throw e;
+    }
+  }, [collection]);
+
+  const update = useCallback(async (id: string, updates: Partial<T>): Promise<T | null> => {
+    try {
+      return await db.update<T>(collection, id, updates);
+    } catch (e: any) {
+      setError(e?.message ?? 'Update failed');
+      throw e;
+    }
+  }, [collection]);
+
+  const remove = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      return await db.remove<T>(collection, id);
+    } catch (e: any) {
+      setError(e?.message ?? 'Remove failed');
+      throw e;
+    }
+  }, [collection]);
+
+  return { data, loading, error, status, connectionStatus: status, add, update, remove, refresh };
+}
+
+/**
+ * Subscribe to a single document by id.
+ */
+export function useRealtimeDocument<T extends { id: string }>(
+  collection: string,
+  id: string
+): { doc: T | null; loading: boolean } {
+  const [doc,     setDoc]     = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    const unsub = db.onSnapshot<T>(collection, (rows) => {
+      setDoc(rows.find(r => r.id === id) ?? null);
+      setLoading(false);
     });
+    return unsub;
+  }, [collection, id]);
 
-    return () => {
-      mountedRef.current = false;
-      unsubscribe();
-      unsubStatus();
-    };
-  }, [collection]);
+  return { doc, loading };
+}
 
-  // Filter and sort data
-  const filteredData = (() => {
-    let result = [...data];
+/**
+ * Real-time presence for current user.
+ */
+export function usePresence(userId: string, name: string, role: string, page: string): void {
+  useEffect(() => {
+    if (!userId) return;
+    const ping = () => db.updatePresence({ userId, name, role, lastSeen: Date.now(), page });
+    ping();
+    const interval = setInterval(ping, 15_000);
+    return () => clearInterval(interval);
+  }, [userId, name, role, page]);
+}
 
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(item =>
-        Object.values(item).some(v =>
-          String(v).toLowerCase().includes(q)
-        )
-      );
-    }
-
-    if (sortField) {
-      result.sort((a, b) => {
-        const aVal = String((a as any)[sortField] || '');
-        const bVal = String((b as any)[sortField] || '');
-        const cmp = aVal.localeCompare(bVal);
-        return sortDirection === 'desc' ? -cmp : cmp;
-      });
-    }
-
-    return result;
-  })();
-
-  const add = useCallback(async (item: T) => {
-    try {
-      setError(null);
-      await api.create(collection, item);
-    } catch (e: any) {
-      setError(e.message || 'Failed to add item');
-      throw e;
-    }
-  }, [collection]);
-
-  const update = useCallback(async (id: string, updates: Partial<T>) => {
-    try {
-      setError(null);
-      await api.update(collection, id, updates);
-    } catch (e: any) {
-      setError(e.message || 'Failed to update item');
-      throw e;
-    }
-  }, [collection]);
-
-  const remove = useCallback(async (id: string) => {
-    try {
-      setError(null);
-      await api.delete(collection, id);
-    } catch (e: any) {
-      setError(e.message || 'Failed to delete item');
-      throw e;
-    }
-  }, [collection]);
-
-  const refresh = useCallback(() => {
-    setData(db.getAll<T>(collection));
-    setLastUpdated(Date.now());
-  }, [collection]);
-
-  return {
-    data: filteredData,
-    loading,
-    error,
-    add,
-    update,
-    remove,
-    refresh,
-    connectionStatus,
-    lastUpdated,
-  };
+/**
+ * Live connection status.
+ */
+export function useConnectionStatus(): DbStatus {
+  const [s, setS] = useState<DbStatus>('connected');
+  useEffect(() => {
+    const unsub = db.onConnectionStatus(setS);
+    return unsub;
+  }, []);
+  return s;
 }

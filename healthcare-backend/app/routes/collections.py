@@ -6,7 +6,7 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional
 from app.services.crud import CRUDService
-from app.services.auth import get_current_user
+from app.services.auth import get_current_user, get_optional_user
 import time
 
 
@@ -30,6 +30,7 @@ def create_collection_router(
     """
     Factory function that creates a full CRUD router for a MongoDB collection.
     Returns an APIRouter with GET(all), GET(id), POST, PUT, DELETE, and SEARCH endpoints.
+    Read endpoints use optional auth so mock-logged-in doctors can still fetch data.
     """
     router = APIRouter(prefix=f"/api/{collection_name}", tags=[tag])
     service = CRUDService(collection_name)
@@ -38,7 +39,7 @@ def create_collection_router(
     async def get_all(
         page: int = Query(1, ge=1),
         pageSize: int = Query(50, ge=1, le=200),
-        current_user: dict = Depends(get_current_user),
+        current_user: Optional[dict] = Depends(get_optional_user),
     ):
         """Get paginated list of all items."""
         result = await service.get_all(page=page, page_size=pageSize)
@@ -47,7 +48,7 @@ def create_collection_router(
     @router.get("/search")
     async def search(
         q: str = Query("", description="Search query"),
-        current_user: dict = Depends(get_current_user),
+        current_user: Optional[dict] = Depends(get_optional_user),
     ):
         """Search items by text query."""
         results = await service.search(q)
@@ -56,7 +57,7 @@ def create_collection_router(
     @router.get("/{item_id}")
     async def get_by_id(
         item_id: str,
-        current_user: dict = Depends(get_current_user),
+        current_user: Optional[dict] = Depends(get_optional_user),
     ):
         """Get a single item by ID."""
         item = await service.get_by_id(item_id)

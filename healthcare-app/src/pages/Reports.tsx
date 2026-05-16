@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { api } from '../services/api';
-import { TrendingUp, Users, DollarSign, Calendar } from 'lucide-react';
+import { TrendingUp, Users, IndianRupee, Calendar } from 'lucide-react';
 
 Chart.register(...registerables);
 
@@ -84,7 +84,7 @@ export default function Reports() {
   }, []);
 
   const summaryStats = [
-    { label: 'Total Revenue', value: '$128.5K', change: '+8.2%', icon: <DollarSign size={20} />, color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+    { label: 'Total Revenue', value: '₹12.8L', change: '+8.2%', icon: <IndianRupee size={20} />, color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
     { label: 'Total Patients', value: '1,248', change: '+12%', icon: <Users size={20} />, color: '#0ea5e9', bg: 'rgba(14,165,233,0.12)' },
     { label: 'Appointments', value: '342', change: '+5.3%', icon: <Calendar size={20} />, color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
     { label: 'Growth Rate', value: '23%', change: '+2.1%', icon: <TrendingUp size={20} />, color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },

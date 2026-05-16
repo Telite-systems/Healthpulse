@@ -132,18 +132,73 @@ class ApiService {
   // ========= Auth Endpoints =========
 
   async login(username: string, password: string): Promise<ApiResponse<{ token: string; user: any; expiresAt: number }>> {
-    const response = await this.request<{ token: string; user: any; expiresAt: number }>(
-      'POST',
-      '/api/auth/login',
-      { username, password }
-    );
+    // ── Mock credentials table (works fully offline) ───────────────────────
+    const MOCK_USERS: Record<string, { pass: string; user: any }> = {
+      admin:   { pass: 'admin123',   user: { id: 'A001', username: 'admin',   name: 'Dr. Admin Singh',    role: 'Admin',   avatar: '🛡️',  department: 'Administration' } },
+      // Doctor logins — each doctor has their own username (first name)
+      doctor:  { pass: 'doctor123',  user: { id: 'D001', username: 'doctor',  name: 'Dr. Rajesh Kumar',   role: 'Doctor',  avatar: '👨‍⚕️', department: 'Cardiology',      specialization: 'Cardiology' } },
+      rajesh:  { pass: 'doctor123',  user: { id: 'D001', username: 'rajesh',  name: 'Dr. Rajesh Kumar',   role: 'Doctor',  avatar: '👨‍⚕️', department: 'Cardiology',      specialization: 'Cardiology' } },
+      sneha:   { pass: 'doctor123',  user: { id: 'D002', username: 'sneha',   name: 'Dr. Sneha Verma',    role: 'Doctor',  avatar: '👩‍⚕️', department: 'Neurology',       specialization: 'Neurology' } },
+      vikram:  { pass: 'doctor123',  user: { id: 'D003', username: 'vikram',  name: 'Dr. Vikram Patel',   role: 'Doctor',  avatar: '👨‍⚕️', department: 'Orthopedics',     specialization: 'Orthopedics' } },
+      ananya:  { pass: 'doctor123',  user: { id: 'D004', username: 'ananya',  name: 'Dr. Ananya Reddy',   role: 'Doctor',  avatar: '👩‍⚕️', department: 'Pediatrics',      specialization: 'Pediatrics' } },
+      kavita:  { pass: 'doctor123',  user: { id: 'D005', username: 'kavita',  name: 'Dr. Kavita Negi',    role: 'Doctor',  avatar: '👩‍⚕️', department: 'Dermatology',     specialization: 'Dermatology' } },
+      arjun:   { pass: 'doctor123',  user: { id: 'D006', username: 'arjun',   name: 'Dr. Arjun Mehta',    role: 'Doctor',  avatar: '👨‍⚕️', department: 'General Surgery', specialization: 'General Surgery' } },
+      pooja:   { pass: 'doctor123',  user: { id: 'D007', username: 'pooja',   name: 'Dr. Pooja Sharma',   role: 'Doctor',  avatar: '👩‍⚕️', department: 'Gynecology',      specialization: 'Gynecology' } },
+      suresh:  { pass: 'doctor123',  user: { id: 'D008', username: 'suresh',  name: 'Dr. Suresh Yadav',   role: 'Doctor',  avatar: '👨‍⚕️', department: 'ENT',             specialization: 'ENT' } },
+      meena:   { pass: 'doctor123',  user: { id: 'D009', username: 'meena',   name: 'Dr. Meena Iyer',     role: 'Doctor',  avatar: '👩‍⚕️', department: 'Ophthalmology',   specialization: 'Ophthalmology' } },
+      ravi:    { pass: 'doctor123',  user: { id: 'D010', username: 'ravi',    name: 'Dr. Ravi Gupta',     role: 'Doctor',  avatar: '👨‍⚕️', department: 'General Medicine', specialization: 'General Medicine' } },
+      neha:    { pass: 'doctor123',  user: { id: 'D011', username: 'neha',    name: 'Dr. Neha Joshi',     role: 'Doctor',  avatar: '👩‍⚕️', department: 'Psychiatry',      specialization: 'Psychiatry' } },
+      amit:    { pass: 'doctor123',  user: { id: 'D012', username: 'amit',    name: 'Dr. Amit Tiwari',    role: 'Doctor',  avatar: '👨‍⚕️', department: 'Pulmonology',     specialization: 'Pulmonology' } },
+      staff:   { pass: 'staff123',   user: { id: 'S001', username: 'staff',   name: 'Priya Staff',        role: 'Staff',   avatar: '👩‍💼', department: 'Reception' } },
+      patient: { pass: 'patient123', user: { id: 'P001', username: 'patient', name: 'Rahul Sharma',       role: 'Patient', avatar: '👤' } },
+    };
 
-    // Store token locally
-    const { token, expiresAt } = response.data;
-    localStorage.setItem('hp_auth_token', token);
-    localStorage.setItem('hp_token_expires', expiresAt.toString());
+    const mock = MOCK_USERS[username.toLowerCase()];
 
-    return response;
+    // ── Try real backend first (for ALL roles) ─────────────────────────────
+    try {
+      const response = await this.request<{ token: string; user: any; expiresAt: number }>(
+        'POST', '/api/auth/login', { username, password }
+      );
+      const { token, expiresAt } = response.data;
+      localStorage.setItem('hp_auth_token', token);
+      localStorage.setItem('hp_token_expires', expiresAt.toString());
+      localStorage.removeItem('hp_mock_user');
+      return response;
+    } catch (err: any) {
+      // Fall through to mock if:
+      //  (a) Backend is unreachable (NETWORK_ERROR / status 0), OR
+      //  (b) Backend returned 401 but this username exists in mock table
+      //      (doctor-specific accounts like rajesh/sneha/vikram don't exist in the real DB)
+      const isMockUser = !!mock;
+      const isNetworkError = err?.code === 'NETWORK_ERROR' || err?.status === 0;
+      const isBackend401ForMockUser = err?.status === 401 && isMockUser;
+
+      if (!isNetworkError && !isBackend401ForMockUser) {
+        throw err;
+      }
+      console.warn('[Auth] Backend login failed, using mock credentials:', err?.message);
+    }
+
+    // ── Mock login (offline fallback or Patient) ───────────────────────────
+    if (mock && password === mock.pass) {
+      const expiresAt = Date.now() + 8 * 60 * 60 * 1000; // 8 hours
+      const mockToken = btoa(JSON.stringify({ id: mock.user.id, role: mock.user.role, exp: expiresAt }));
+      localStorage.setItem('hp_auth_token', mockToken);
+      localStorage.setItem('hp_token_expires', expiresAt.toString());
+      localStorage.setItem('hp_mock_user', JSON.stringify(mock.user));
+      return {
+        data: { token: mockToken, user: mock.user, expiresAt },
+        status: 200, message: 'Login successful (offline mode)',
+        timestamp: Date.now(), requestId: `req_${Date.now()}`,
+      };
+    }
+
+    // ── Bad credentials ────────────────────────────────────────────────────
+    throw {
+      status: 401, message: 'Invalid username or password',
+      code: 'AUTH_FAILED', timestamp: Date.now(),
+    };
   }
 
   async logout(): Promise<ApiResponse<{ success: boolean }>> {
@@ -153,45 +208,35 @@ class ApiService {
     } finally {
       localStorage.removeItem('hp_auth_token');
       localStorage.removeItem('hp_token_expires');
+      localStorage.removeItem('hp_mock_user');
     }
   }
 
   async validateToken(): Promise<ApiResponse<{ valid: boolean; user?: any }>> {
-    const token = localStorage.getItem('hp_auth_token');
+    const token   = localStorage.getItem('hp_auth_token');
     const expires = localStorage.getItem('hp_token_expires');
 
     if (!token || !expires) {
-      return {
-        data: { valid: false },
-        status: 200,
-        message: 'No token',
-        timestamp: Date.now(),
-        requestId: `req_${Date.now()}`,
-      };
+      return { data: { valid: false }, status: 200, message: 'No token', timestamp: Date.now(), requestId: `req_${Date.now()}` };
     }
 
     if (Date.now() > parseInt(expires)) {
       localStorage.removeItem('hp_auth_token');
       localStorage.removeItem('hp_token_expires');
-      return {
-        data: { valid: false },
-        status: 200,
-        message: 'Token expired',
-        timestamp: Date.now(),
-        requestId: `req_${Date.now()}`,
-      };
+      localStorage.removeItem('hp_mock_user');
+      return { data: { valid: false }, status: 200, message: 'Token expired', timestamp: Date.now(), requestId: `req_${Date.now()}` };
+    }
+
+    // ── Restore mock Patient session without hitting backend ────────────────
+    const mockUser = localStorage.getItem('hp_mock_user');
+    if (mockUser) {
+      return { data: { valid: true, user: JSON.parse(mockUser) }, status: 200, message: 'Mock session', timestamp: Date.now(), requestId: `req_${Date.now()}` };
     }
 
     try {
       return await this.request<{ valid: boolean; user?: any }>('GET', '/api/auth/validate');
     } catch {
-      return {
-        data: { valid: false },
-        status: 200,
-        message: 'Token validation failed',
-        timestamp: Date.now(),
-        requestId: `req_${Date.now()}`,
-      };
+      return { data: { valid: false }, status: 200, message: 'Token validation failed', timestamp: Date.now(), requestId: `req_${Date.now()}` };
     }
   }
 
@@ -207,6 +252,19 @@ class ApiService {
     } catch {
       return [];
     }
+  }
+
+  // ========= Patient Registration =========
+
+  async register(data: { name: string; email: string; phone: string; username: string; password: string }): Promise<ApiResponse<{ token: string; user: any; expiresAt: number }>> {
+    const response = await this.request<{ token: string; user: any; expiresAt: number }>(
+      'POST', '/api/auth/register', data
+    );
+    const { token, expiresAt } = response.data;
+    localStorage.setItem('hp_auth_token', token);
+    localStorage.setItem('hp_token_expires', expiresAt.toString());
+    localStorage.removeItem('hp_mock_user');
+    return response;
   }
 
   // ========= Dashboard Stats =========

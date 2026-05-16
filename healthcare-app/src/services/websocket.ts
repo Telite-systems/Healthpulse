@@ -125,9 +125,9 @@ class WebSocketService {
 
     const templates: Omit<WSEvent, 'id' | 'timestamp'>[] = [
       { type: 'vital_update', title: 'Vitals Updated', message: 'Patient John Anderson — BP: 138/88, HR: 76 bpm', severity: 'info' },
-      { type: 'appointment_update', title: 'Appointment Check-in', message: 'Maria Garcia has checked in for Dr. Anna Lee', severity: 'info' },
+      { type: 'appointment_update', title: 'Appointment Check-in', message: 'Maria Garcia has checked in for Dr. Sneha Verma', severity: 'info' },
       { type: 'patient_alert', title: 'New Patient Registered', message: 'Patient Alex Rivera — Emergency Department', severity: 'info' },
-      { type: 'billing_event', title: 'Payment Received', message: '$495 payment from Robert Chen', severity: 'success' },
+      { type: 'billing_event', title: 'Payment Received', message: '₹4,720 payment from Robert Chen', severity: 'success' },
       { type: 'system_event', title: 'System Backup', message: 'Daily backup completed — 1.2GB synced', severity: 'success' },
       { type: 'staff_status', title: 'Shift Change', message: 'Night shift handover complete — 12 staff on duty', severity: 'info' },
       { type: 'vital_update', title: 'Critical Alert', message: 'ICU Bed 7 — Patient heart rate dropped to 48 bpm', severity: 'critical' },

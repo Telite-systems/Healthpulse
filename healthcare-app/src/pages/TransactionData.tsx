@@ -179,7 +179,7 @@ export default function TransactionData() {
           <tbody>{data.map((b, i) => (
             <tr key={i} className="table-row-animate" style={{ animationDelay: `${i * 0.03}s` }}>
               <td className="td-mono">{b.id}</td><td style={{fontWeight:600,color:'var(--text-primary)'}}>{b.patientName}</td><td>{b.services}</td>
-              <td>${b.amount}</td><td style={{fontWeight:700}}>${b.total}</td><td>{b.paymentMethod}</td>
+              <td>₹{b.amount.toLocaleString('en-IN')}</td><td style={{fontWeight:700}}>₹{b.total.toLocaleString('en-IN')}</td><td>{b.paymentMethod}</td>
               <td><span className={`status-badge ${b.status.toLowerCase()}`}>{b.status}</span></td>
               <td><ActionButtons id={b.id} /></td>
             </tr>

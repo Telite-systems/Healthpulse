@@ -110,8 +110,10 @@ export interface User {
   username: string;
   password: string;
   name: string;
-  role: 'Admin' | 'Doctor' | 'Staff';
+  role: 'Admin' | 'Doctor' | 'Staff' | 'Patient';
   avatar: string;
+  specialization?: string;
+  department?: string;
 }
 
 export interface ChatMessage {

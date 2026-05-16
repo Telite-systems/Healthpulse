@@ -103,6 +103,96 @@ async def login_info():
     }
 
 
+# ─── Patient Self-Registration ───────────────────────────────────────────────
+from pydantic import BaseModel, EmailStr, Field
+
+class PatientRegister(BaseModel):
+    name: str = Field(..., min_length=2)
+    email: str
+    phone: str
+    username: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=6)
+
+@router.post("/register", response_model=dict)
+async def register_patient(payload: PatientRegister):
+    """Register a new patient account."""
+    users_col = database.get_collection("users")
+    patients_col = database.get_collection("patients")
+
+    # Check duplicate username
+    existing = await users_col.find_one({"username": payload.username.lower()})
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username already exists",
+        )
+
+    # Check duplicate email
+    existing_email = await users_col.find_one({"email": payload.email.lower()})
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already registered",
+        )
+
+    import uuid
+    user_id = f"P{str(uuid.uuid4())[:6].upper()}"
+    hashed = hash_password(payload.password)
+
+    # Create user document
+    user_doc = {
+        "_id": user_id,
+        "username": payload.username.lower(),
+        "name": payload.name,
+        "email": payload.email.lower(),
+        "phone": payload.phone,
+        "role": "Patient",
+        "avatar": "👤",
+        "hashed_password": hashed,
+    }
+    await users_col.insert_one(user_doc)
+
+    # Also create patient record
+    patient_doc = {
+        "_id": user_id,
+        "id": user_id,
+        "name": payload.name,
+        "age": 0,
+        "gender": "Other",
+        "contact": payload.phone,
+        "email": payload.email.lower(),
+        "address": "",
+        "bloodGroup": "Unknown",
+        "registeredDate": datetime.utcnow().strftime("%Y-%m-%d"),
+        "status": "Active",
+    }
+    await patients_col.insert_one(patient_doc)
+
+    # Issue JWT immediately
+    expires_at = datetime.utcnow() + timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = create_access_token(data={"userId": user_id, "role": "Patient"})
+
+    user_response = {
+        "id": user_id,
+        "username": payload.username.lower(),
+        "name": payload.name,
+        "role": "Patient",
+        "avatar": "👤",
+    }
+
+    return {
+        "data": {
+            "token": token,
+            "user": user_response,
+            "expiresAt": int(expires_at.timestamp() * 1000),
+        },
+        "status": 201,
+        "message": "Registration successful",
+        "timestamp": int(time.time() * 1000),
+        "requestId": f"req_{int(time.time())}",
+    }
+
+
 @router.post("/logout")
 async def logout(current_user: dict = Depends(get_current_user)):
     """Logout the current user."""

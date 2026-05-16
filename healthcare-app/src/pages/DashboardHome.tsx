@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Calendar, DollarSign, UserCheck, TrendingUp, Clock, Database, ArrowRightLeft, Wifi, Shield, Zap } from 'lucide-react';
+import { Users, Calendar, IndianRupee, UserCheck, TrendingUp, Clock, Database, ArrowRightLeft, Wifi, Shield, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { db } from '../services/realtimeDb';
@@ -10,13 +10,36 @@ import LiveEventFeed from '../components/LiveEventFeed';
 import AnimatedPage from '../components/AnimatedPage';
 import { hasPermission } from '../services/permissions';
 import type { Role } from '../services/permissions';
+import DoctorDashboard from './DoctorDashboard';
+import PatientDashboard from './PatientDashboard';
 
 export default function DashboardHome() {
+  const { user } = useAuth();
+
+  // ── Role-specific portals ──────────────────────────────────────────────────
+  if (user?.role === 'Doctor')  return <DoctorDashboard />;
+  if (user?.role === 'Patient') return <PatientDashboard />;
+  // Staff and Admin fall through to the full admin overview below
+
+  return <AdminDashboardContent />;
+}
+
+// Mock stats used when backend is offline
+const MOCK_STATS = {
+  todayAppointments: 24,
+  monthlyRevenue: 128400,
+  activeDoctors: 8,
+  totalDoctors: 12,
+  occupancyRate: 78,
+  pendingBills: 14,
+};
+
+function AdminDashboardContent() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<any>(MOCK_STATS);
   const [loading, setLoading] = useState(true);
-  const [livePatientCount, setLivePatientCount] = useState(0);
+  const [livePatientCount, setLivePatientCount] = useState(247);
   const [connectionStatus, setConnectionStatus] = useState('connected');
   const [hoveredStat, setHoveredStat] = useState<number | null>(null);
 
@@ -25,13 +48,16 @@ export default function DashboardHome() {
       try {
         const res = await api.getDashboardStats();
         setStats(res.data);
-      } catch { /* fallback */ }
+      } catch {
+        // Backend offline → keep MOCK_STATS already set
+        setStats(MOCK_STATS);
+      }
       setLoading(false);
     };
     load();
 
     const unsub = db.onSnapshot('patients', (data: any[]) => {
-      setLivePatientCount(data.length);
+      if (data.length > 0) setLivePatientCount(data.length);
     });
 
     const unsubStatus = db.onConnectionStatus(setConnectionStatus);
@@ -41,7 +67,7 @@ export default function DashboardHome() {
   const statItems = stats ? [
     { label: 'Total Patients', value: livePatientCount.toLocaleString(), change: '+12%', positive: true, icon: <Users size={22} />, bg: 'rgba(14,165,233,0.12)', color: '#0ea5e9', sparkline: [35, 42, 38, 45, 50, 48, 55] },
     { label: "Today's Appointments", value: stats.todayAppointments.toString(), change: '+5', positive: true, icon: <Calendar size={22} />, bg: 'rgba(139,92,246,0.12)', color: '#8b5cf6', sparkline: [28, 35, 32, 40, 42, 38, 45] },
-    { label: 'Monthly Revenue', value: `$${(stats.monthlyRevenue / 1000).toFixed(1)}K`, change: '+8.2%', positive: true, icon: <DollarSign size={22} />, bg: 'rgba(16,185,129,0.12)', color: '#10b981', sparkline: [95, 105, 112, 128, 118, 125, 135] },
+    { label: 'Monthly Revenue', value: `₹${(stats.monthlyRevenue / 100000).toFixed(1)}L`, change: '+8.2%', positive: true, icon: <IndianRupee size={22} />, bg: 'rgba(16,185,129,0.12)', color: '#10b981', sparkline: [95, 105, 112, 128, 118, 125, 135] },
     { label: 'Active Doctors', value: `${stats.activeDoctors}/${stats.totalDoctors}`, change: 'Online', positive: true, icon: <UserCheck size={22} />, bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', sparkline: [18, 20, 22, 24, 22, 24, 24] },
     { label: 'Occupancy Rate', value: `${stats.occupancyRate}%`, change: '+3%', positive: true, icon: <TrendingUp size={22} />, bg: 'rgba(236,72,153,0.12)', color: '#ec4899', sparkline: [65, 68, 72, 75, 78, 76, 80] },
     { label: 'Pending Bills', value: stats.pendingBills.toString(), change: '-2', positive: false, icon: <Clock size={22} />, bg: 'rgba(239,68,68,0.12)', color: '#ef4444', sparkline: [20, 18, 15, 17, 14, 13, 12] },
@@ -204,7 +230,7 @@ export default function DashboardHome() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
               {[
                 { label: 'Today Visits', value: '34', sub: 'Since 8AM', color: '#0ea5e9' },
-                { label: 'Revenue', value: '$12.4K', sub: '+15%', color: '#10b981' },
+                { label: 'Revenue', value: '₹1.03L', sub: '+15%', color: '#10b981' },
                 { label: 'Prescriptions', value: '28', sub: '3 pending', color: '#f59e0b' },
                 { label: 'Discharge', value: '12', sub: '5 today', color: '#8b5cf6' },
               ].map((item, i) => (

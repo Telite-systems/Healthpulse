@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   MessageSquare, Send, Mic, MicOff, X, Loader2,
-  Volume2, VolumeX, RefreshCw, Video, VideoOff,
-  Phone, PhoneOff, AlertCircle,
+  Volume2, VolumeX, RefreshCw, AlertCircle, Wifi, WifiOff,
+  Video, Phone, PhoneCall
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { findHelpArticles } from '../data/helpCenterData';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,67 +19,22 @@ export interface ChatMessage {
   isError?: boolean;
 }
 
-interface GeminiTurn {
-  role: 'user' | 'model';
-  parts: { text: string }[];
-}
-
 // ─── Configuration ─────────────────────────────────────────────────────────────
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? '';
+const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook/chat';
+const REQUEST_TIMEOUT_MS = 30_000; // 30 s
 
-/** Model fallback chain — tries each on quota/model errors */
-const MODEL_FALLBACKS = [
-  'gemini-2.0-flash-lite',
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-flash-8b',
-];
-const MAX_RETRIES   = 2;
-const BASE_ENDPOINT = (model: string) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+// ─── Session ID — persisted for the browser tab ────────────────────────────────
 
-// ─── Multilingual Doctor System Prompt ───────────────────────────────────────
-
-const SYSTEM_INSTRUCTION = `You are Dr. HealthPulse — ek bahut caring, empathetic, aur experienced AI doctor assistant jo HealthPulse Hospital Platform mein embedded hai.
-
-🌍 LANGUAGE RULES (CRITICAL):
-- If user writes in Hindi → reply in Hindi + Devanagari (हिंदी)
-- If user writes in Hinglish (Roman Hindi) → reply in Hinglish (friendly mix)
-- If user writes English → reply in clear, warm English
-- If user greets in Garhwali phrases (like "Kya haal chha", "Theek chha") → reply warmly acknowledging Garhwali, then continue in Hinglish
-- DETECT the language in first 2 words and match it throughout the reply
-- Use "aap" (formal) in Hindi/Hinglish to sound respectful
-
-🩺 PERSONALITY:
-- Ek caring aur warm human doctor ki tarah baat karo — kabhi robotic mat lagna
-- Pehle patient ki feelings validate karo, PHIR symptoms analyse karo
-- Emojis use karo occasionally (😊 🥺 💊 🌡️ 🙏) — human feel ke liye
-- Clear, simple language use karo — heavy jargon avoid karo
-
-💬 CONVERSATION STYLE:
-- Warmly greet karo aur ek open-ended follow-up question poocho
-- Ek baar mein sirf EK follow-up question poocho (onset, severity, ya associated symptoms)
-- 2–3 details milne ke baad naturally diagnosis aur care plan batao
-- Before concluding, apni reasoning batao: "Aapne jo bataya usase lagta hai ki…"
-- ALWAYS end medical advice with the safety disclaimer below
-
-📋 PRESCRIPTION FORMAT (jab zaroorat ho):
-💊 Care Plan:
-• Sambhavit Diagnosis: …
-• Suggested Dawai: … (Dosage)
-• Ghar ka Ilaaj: …
-• Doctor ki Salaah: …
-⚠️ Yeh sirf general jaankari hai. Agar symptoms zyada badhen ya serious lage, toh hamare clinic mein zaroor aayein ya emergency services call karein.
-
-🚨 EMERGENCY PROTOCOL:
-Agar patient bataye: chest pain, saans lene mein problem, behoshi, stroke symptoms, ya severe allergy:
-→ TURANT respond karo: 🚨 EMERGENCY ALERT 🚨 — Abhi ambulance bulao ya najdiki hospital jaao. Bilkul der mat karo.
-
-⚡ QUICK ACTIONS:
-Har response ke bilkul end mein, ek alag line par exactly yeh format likho:
-QUICK_ACTIONS: [option1] | [option2] | [option3]
-Options 3-6 words mein rakho, contextually relevant.
-Example: QUICK_ACTIONS: [Mujhe bukhar hai] | [Appointment book karo] | [Aur symptoms hain]`;
+function getSessionId(): string {
+  const key = 'hp_chat_session_id';
+  let id = sessionStorage.getItem(key);
+  if (!id) {
+    id = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    sessionStorage.setItem(key, id);
+  }
+  return id;
+}
 
 // ─── Rule-Based Fallback (Offline / Hinglish) ─────────────────────────────────
 
@@ -115,10 +73,10 @@ function getRuleBased(input: string): { text: string; quickActions: string[] } {
     const t = ctx.lastTopic;
     fbCtx.current = { ...ctx, step: 'resolved' };
     const plans: Record<string, { text: string; qa: string[] }> = {
-      fever:    { text: 'Samajh aa gaya. Jo aapne bataya usse lagta hai yeh viral infection ya seasonal flu hai.\n\n💊 **Care Plan:**\n• Sambhavit Diagnosis: Viral Bukhar / Flu\n• Suggested Dawai: Paracetamol 500mg (1 tablet khaana khane ke baad, din mein 3 baar)\n• Ghar ka Ilaaj: Haldi wala doodh, zyada paani peeyen, thanda paani se bacho\n• Doctor ki Salaah: Agar bukhar 103°F se zyada ho ya 3 din se zyada rahe, toh clinic aayein\n\n⚠️ Yeh sirf general jaankari hai. Serious condition ho toh doctor se zaroor milein.', qa: ['Appointment book karo', 'Shukriya, Doctor'] },
-      cough:    { text: 'Aapki baat se lagta hai yeh common cold ya throat infection hai.\n\n💊 **Care Plan:**\n• Sambhavit Diagnosis: Upper Respiratory Infection\n• Suggested Dawai: Cough syrup 2 chammach din mein 2 baar\n• Ghar ka Ilaaj: Garam paani mein namak daalo aur gargle karo, honey-ginger wala paani peeyen\n• Doctor ki Salaah: Awaz mat ugaiye, thanda paani bilkul nahi\n\n⚠️ Yeh sirf general jaankari hai. Serious condition ho toh doctor se zaroor milein.', qa: ['Appointment book karo', 'Shukriya, Doctor'] },
+      fever: { text: 'Samajh aa gaya. Jo aapne bataya usse lagta hai yeh viral infection ya seasonal flu hai.\n\n💊 **Care Plan:**\n• Sambhavit Diagnosis: Viral Bukhar / Flu\n• Suggested Dawai: Paracetamol 500mg (1 tablet khaana khane ke baad, din mein 3 baar)\n• Ghar ka Ilaaj: Haldi wala doodh, zyada paani peeyen, thanda paani se bacho\n• Doctor ki Salaah: Agar bukhar 103°F se zyada ho ya 3 din se zyada rahe, toh clinic aayein\n\n⚠️ Yeh sirf general jaankari hai. Serious condition ho toh doctor se zaroor milein.', qa: ['Appointment book karo', 'Shukriya, Doctor'] },
+      cough: { text: 'Aapki baat se lagta hai yeh common cold ya throat infection hai.\n\n💊 **Care Plan:**\n• Sambhavit Diagnosis: Upper Respiratory Infection\n• Suggested Dawai: Cough syrup 2 chammach din mein 2 baar\n• Ghar ka Ilaaj: Garam paani mein namak daalo aur gargle karo, honey-ginger wala paani peeyen\n• Doctor ki Salaah: Awaz mat ugaiye, thanda paani bilkul nahi\n\n⚠️ Yeh sirf general jaankari hai. Serious condition ho toh doctor se zaroor milein.', qa: ['Appointment book karo', 'Shukriya, Doctor'] },
       headache: { text: 'Jo aap describe kar rahe hain wo tension headache lagta hai — aksar stress ya dehydration se hota hai.\n\n💊 **Care Plan:**\n• Sambhavit Diagnosis: Tension Headache / Dehydration\n• Suggested Dawai: Ibuprofen ya Paracetamol (1 tablet khaane ke saath)\n• Ghar ka Ilaaj: 2 bade glass paani abhi peeyen, andhera kamra, thodi neend lein\n• Doctor ki Salaah: Screen time kam karein aur 7-8 ghante ki neend lein\n\n⚠️ Yeh sirf general jaankari hai. Serious condition ho toh doctor se zaroor milein.', qa: ['Appointment book karo', 'Shukriya, Doctor'] },
-      stomach:  { text: 'Jo aap bata rahe hain usse lagta hai yeh gastritis ya mild food poisoning hai.\n\n💊 **Care Plan:**\n• Sambhavit Diagnosis: Gastritis / Mild Food Poisoning\n• Suggested Dawai: Antacid (Gelusil) + ORS paani peete rahein\n• Ghar ka Ilaaj: Halka khana — chawal, toast, banana. Teekha-masaledar bilkul nahi.\n• Doctor ki Salaah: 24 ghante mein kuch bhi nahi rukta toh clinic aayein\n\n⚠️ Yeh sirf general jaankari hai. Serious condition ho toh doctor se zaroor milein.', qa: ['Appointment book karo', 'Shukriya, Doctor'] },
+      stomach: { text: 'Jo aap bata rahe hain usse lagta hai yeh gastritis ya mild food poisoning hai.\n\n💊 **Care Plan:**\n• Sambhavit Diagnosis: Gastritis / Mild Food Poisoning\n• Suggested Dawai: Antacid (Gelusil) + ORS paani peete rahein\n• Ghar ka Ilaaj: Halka khana — chawal, toast, banana. Teekha-masaledar bilkul nahi.\n• Doctor ki Salaah: 24 ghante mein kuch bhi nahi rukta toh clinic aayein\n\n⚠️ Yeh sirf general jaankari hai. Serious condition ho toh doctor se zaroor milein.', qa: ['Appointment book karo', 'Shukriya, Doctor'] },
     };
     const p = t ? plans[t] : null;
     if (p) return { text: p.text, quickActions: p.qa };
@@ -131,24 +89,50 @@ function getRuleBased(input: string): { text: string; quickActions: string[] } {
     fbCtx.current = { lastTopic: 'appointment', step: 'followup' };
     return { text: 'Bilkul! Doctor se milna hamesha best decision hota hai. Aap General Physician chahiye ya koi Specialist (ENT, Cardiologist, Orthopedic)?', quickActions: ['General Physician', 'Specialist', 'Video Consultation'] };
   }
+  // ── Help Center article suggestions ──
+  if (lo.match(/how to|help|guide|kaise|kaise kare|steps|tutorial|help center|kya karein/)) {
+    const helpResults = findHelpArticles(lo);
+    if (helpResults.length > 0) {
+      const article = helpResults[0];
+      const stepsPreview = article.steps.slice(0, 3).map(s => `${s.stepNumber}. ${s.text}`).join('\n');
+      fbCtx.current = {};
+      return {
+        text: `📖 **${article.title}**\n\n${article.description}\n\n**Quick Steps:**\n${stepsPreview}${article.steps.length > 3 ? `\n...+${article.steps.length - 3} more steps` : ''}\n\n💡 _Full guide available in Help Center_`,
+        quickActions: ['📖 Open Help Center', ...(helpResults.length > 1 ? [helpResults[1].title] : [])],
+      };
+    }
+  }
   fbCtx.current = ctx;
   return { text: 'Main aapki help karna chahta hoon! Kya aap apna main symptom thoda aur clearly batayenge? Jaise — bukhar, khansi, sar dard, ya pet dard?', quickActions: ['Bukhar', 'Khansi', 'Sar dard', 'Pet dard'] };
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Parse n8n response (handles multiple possible shapes) ───────────────────
 
-function parseGeminiResponse(raw: string): { text: string; quickActions: string[] } {
+function parseN8nResponse(data: any): { text: string; quickActions: string[] } {
+  // n8n can return: { output }, { text }, { response }, { message }, or a string
+  let raw = '';
+
+  if (typeof data === 'string') {
+    raw = data;
+  } else if (Array.isArray(data)) {
+    // n8n sometimes wraps in array
+    const first = data[0];
+    raw = first?.output ?? first?.text ?? first?.response ?? first?.message ?? JSON.stringify(first);
+  } else if (typeof data === 'object' && data !== null) {
+    raw = data.output ?? data.text ?? data.response ?? data.message ?? data.reply ?? '';
+    if (!raw) raw = JSON.stringify(data);
+  }
+
+  // Extract QUICK_ACTIONS if the n8n agent outputs them
   const qaMatch = raw.match(/QUICK_ACTIONS:\s*(.+)/i);
   const quickActions = qaMatch
-    ? qaMatch[1].split('|').map(a => a.replace(/\[|\]/g, '').trim()).filter(Boolean)
+    ? qaMatch[1].split('|').map((a: string) => a.replace(/\[|\]/g, '').trim()).filter(Boolean)
     : [];
+
   return { text: raw.replace(/QUICK_ACTIONS:\s*.+/i, '').trim(), quickActions };
 }
 
-function parseRetryDelay(msg: string) {
-  const m = msg.match(/retry in ([0-9.]+)s/i);
-  return m ? Math.ceil(parseFloat(m[1])) + 1 : 10;
-}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function ftime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -162,271 +146,154 @@ const INIT: ChatMessage[] = [{
   quickActions: ['I have a fever', 'Mujhe khansi hai', 'Sar mein dard hai', 'Appointment chahiye'],
 }];
 
-// ─── Video Call Modal ──────────────────────────────────────────────────────────
-
-function VideoCallModal({ onClose }: { onClose: () => void }) {
-  const [micOn, setMicOn]     = useState(true);
-  const [camOn, setCamOn]     = useState(true);
-  const [callTime, setCallTime] = useState(0);
-  const localVideoRef         = useRef<HTMLVideoElement>(null);
-  const streamRef             = useRef<MediaStream | null>(null);
-  const timerRef              = useRef<ReturnType<typeof setInterval>>();
-
-  useEffect(() => {
-    timerRef.current = setInterval(() => setCallTime(t => t + 1), 1000);
-    navigator.mediaDevices?.getUserMedia({ video: true, audio: true })
-      .then(stream => {
-        streamRef.current = stream;
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-      })
-      .catch(() => {}); // camera permission denied — just show placeholder
-    return () => {
-      clearInterval(timerRef.current);
-      streamRef.current?.getTracks().forEach(t => t.stop());
-    };
-  }, []);
-
-  const toggleMic = () => {
-    streamRef.current?.getAudioTracks().forEach(t => (t.enabled = !micOn));
-    setMicOn(m => !m);
-  };
-  const toggleCam = () => {
-    streamRef.current?.getVideoTracks().forEach(t => (t.enabled = !camOn));
-    setCamOn(c => !c);
-  };
-  const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      backdropFilter: 'blur(12px)',
-    }}>
-      <div style={{
-        width: '100%', maxWidth: 720, borderRadius: 24, overflow: 'hidden',
-        background: 'linear-gradient(135deg, #0c1829, #162033)',
-        border: '1px solid rgba(100,150,200,0.15)', boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
-      }}>
-        {/* Header */}
-        <div style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 10, height: 10, background: '#10b981', borderRadius: '50%', animation: 'vcPulse 2s infinite' }} />
-            <span style={{ color: '#e2e8f0', fontWeight: 600, fontSize: '0.98rem' }}>Dr. HealthPulse — Video Consultation</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <span style={{ color: '#10b981', fontFamily: 'monospace', fontSize: '0.95rem' }}>{fmt(callTime)}</span>
-            <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '6px 14px', borderRadius: 8, fontSize: '0.82rem' }}>✕ Close</button>
-          </div>
-        </div>
-
-        {/* Video area */}
-        <div style={{ position: 'relative', background: '#060e1c', height: 380, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {/* Doctor (remote) placeholder */}
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '5rem', marginBottom: 12 }}>👨‍⚕️</div>
-            <p style={{ color: '#94a3b8', fontWeight: 600 }}>Dr. HealthPulse</p>
-            <span style={{ fontSize: '0.8rem', color: '#10b981' }}>● Connected — AI Consultation Mode</span>
-          </div>
-
-          {/* Self-view (live camera) */}
-          <div style={{ position: 'absolute', bottom: 16, right: 16, width: 140, height: 100, borderRadius: 12, overflow: 'hidden', border: '2px solid rgba(14,165,233,0.4)', background: '#0a1628' }}>
-            {camOn ? (
-              <video ref={localVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
-            ) : (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' }}>
-                <VideoOff size={28} />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Controls */}
-        <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, background: '#0f1729' }}>
-          {[
-            { icon: micOn ? <Mic size={22} /> : <MicOff size={22} />, label: micOn ? 'Mute' : 'Unmute', onClick: toggleMic, active: !micOn, color: '#0891b2' },
-            { icon: camOn ? <Video size={22} /> : <VideoOff size={22} />, label: camOn ? 'Stop Cam' : 'Start Cam', onClick: toggleCam, active: !camOn, color: '#6366f1' },
-            { icon: <PhoneOff size={22} />, label: 'End Call', onClick: onClose, active: true, color: '#ef4444' },
-          ].map((btn, i) => (
-            <div key={i} style={{ textAlign: 'center' }}>
-              <button onClick={btn.onClick} style={{
-                width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                background: btn.color + (btn.label === 'End Call' ? '' : (btn.active ? '22' : '22')),
-                backgroundColor: btn.label === 'End Call' ? btn.color : (btn.active ? `${btn.color}30` : `${btn.color}18`),
-                color: btn.label === 'End Call' ? '#fff' : btn.color,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: btn.label === 'End Call' ? '0 4px 20px rgba(239,68,68,0.4)' : 'none',
-                transition: 'all 0.2s',
-              }}>
-                {btn.icon}
-              </button>
-              <p style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 6 }}>{btn.label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <style>{`
-        @keyframes vcPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-      `}</style>
-    </div>
-  );
-}
-
 // ─── Main ChatbotWidget ───────────────────────────────────────────────────────
 
 export default function ChatbotWidget() {
-  const [isOpen,          setIsOpen]          = useState(false);
-  const [messages,        setMessages]        = useState<ChatMessage[]>(INIT);
-  const [input,           setInput]           = useState('');
-  const [isListening,     setIsListening]     = useState(false);
-  const [isLoading,       setIsLoading]       = useState(false);
-  const [isMuted,         setIsMuted]         = useState(false);
-  const [showVideo,       setShowVideo]       = useState(false);
-  const [retryCountdown,  setRetryCountdown]  = useState<number | null>(null);
-  const [activeModel,     setActiveModel]     = useState(MODEL_FALLBACKS[0]);
-  const [usingFallback,   setUsingFallback]   = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-  const messagesEndRef        = useRef<HTMLDivElement>(null);
-  const speechRecognitionRef  = useRef<any>(null);
-  const historyRef            = useRef<GeminiTurn[]>([]);
-  const retryTimerRef         = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pendingRetryRef       = useRef<{ text: string; attempt: number; modelIdx: number } | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>(INIT);
+  const [input, setInput] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const isMutedRef = useRef(false);
+  const [n8nOnline, setN8nOnline] = useState<boolean | null>(null); // null = unknown
+  const [usingFallback, setUsingFallback] = useState(false);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const speechRecognitionRef = useRef<any>(null);
+  const sessionId = useRef<string>(getSessionId());
+
+  // Derive patientId: use logged-in patient's id, else undefined
+  const patientId = user?.role === 'Patient' ? user.id : undefined;
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isLoading]);
+
   useEffect(() => () => {
     speechRecognitionRef.current?.stop();
     window.speechSynthesis?.cancel();
-    if (retryTimerRef.current) clearInterval(retryTimerRef.current);
   }, []);
 
   // ── TTS ───────────────────────────────────────────────────────────────────
-  const speak = (text: string) => {
-    if (isMuted || !window.speechSynthesis) return;
+  const speakRef = useRef<(text: string) => void>(() => { });
+  speakRef.current = (text: string) => {
+    if (isMutedRef.current || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    const clean = text.replace(/QUICK_ACTIONS:.*/gi, '').replace(/[🚨📋⚠️💊🌡️😊🥺👋🙏•*_]/g, '').trim();
-    const utt   = new SpeechSynthesisUtterance(clean);
-    utt.lang    = 'hi-IN'; // Use Hindi voice — falls back to en-US automatically
-    utt.pitch   = 1.05; utt.rate = 0.93;
+    const clean = text
+      .replace(/QUICK_ACTIONS:.*/gi, '')
+      .replace(/[🚨📋⚠️💊🌡️😊🥺👋🙏•*_]/g, '')
+      .trim();
+    const utt = new SpeechSynthesisUtterance(clean);
+    utt.lang = 'hi-IN';
+    utt.pitch = 1.05; utt.rate = 0.93;
     const voices = window.speechSynthesis.getVoices();
     const best = voices.find(v => v.lang === 'hi-IN')
-              ?? voices.find(v => v.lang.startsWith('en'))
-              ?? null;
+      ?? voices.find(v => v.lang.startsWith('en'))
+      ?? null;
     if (best) utt.voice = best;
     window.speechSynthesis.speak(utt);
   };
+  const speak = (text: string) => speakRef.current(text);
 
-  // ── Retry countdown helper ─────────────────────────────────────────────────
-  const startRetryCountdown = (delaySec: number, text: string, attempt: number, modelIdx: number) => {
-    pendingRetryRef.current = { text, attempt, modelIdx };
-    setRetryCountdown(delaySec);
-    retryTimerRef.current = setInterval(() => {
-      setRetryCountdown(prev => {
-        if (!prev || prev <= 1) {
-          clearInterval(retryTimerRef.current!); retryTimerRef.current = null;
-          const p = pendingRetryRef.current;
-          if (p) { pendingRetryRef.current = null; callGeminiWithRetry(p.text, p.attempt + 1, p.modelIdx); }
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
+  // ── Call n8n webhook ───────────────────────────────────────────────────────
+  const callN8n = useCallback(async (userText: string) => {
+    const payload: Record<string, string> = {
+      message: userText,
+      sessionId: sessionId.current,
+    };
+    if (patientId) payload.patientId = patientId;
 
-  // ── Gemini API call with model fallback + auto-retry ──────────────────────
-  const callGeminiWithRetry = useCallback(async (userText: string, attempt = 0, modelIdx = 0) => {
-    if (!GEMINI_API_KEY) {
-      setUsingFallback(true);
-      const { text, quickActions } = getRuleBased(userText);
-      setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'bot', text, timestamp: new Date().toISOString(), quickActions }]);
-      setIsLoading(false);
-      speak(text);
-      return;
-    }
-
-    const model = MODEL_FALLBACKS[modelIdx] ?? MODEL_FALLBACKS[MODEL_FALLBACKS.length - 1];
-    setActiveModel(model);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
-      const body = {
-        system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-        contents: historyRef.current,
-        generationConfig: { temperature: 0.82, maxOutputTokens: 700, topP: 0.95 },
-        safetySettings: [
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_ONLY_HIGH' },
-        ],
-      };
-
-      const res  = await fetch(`${BASE_ENDPOINT(model)}?key=${GEMINI_API_KEY}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      const res = await fetch(N8N_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
       });
-      const data = await res.json();
+      clearTimeout(timeout);
 
       if (!res.ok) {
-        const errMsg: string = data?.error?.message ?? `HTTP ${res.status}`;
-        const isQuota = res.status === 429 || errMsg.toLowerCase().includes('quota');
-        const isModel = errMsg.toLowerCase().includes('not found') || errMsg.toLowerCase().includes('not supported');
-
-        if ((isQuota || isModel) && modelIdx + 1 < MODEL_FALLBACKS.length)
-          return callGeminiWithRetry(userText, 0, modelIdx + 1);
-
-        if (isQuota && attempt < MAX_RETRIES) {
-          const delaySec = parseRetryDelay(errMsg);
-          setIsLoading(false);
-          setMessages(prev => [...prev, {
-            id: Date.now().toString(), sender: 'bot', isError: true,
-            text: `⏳ Quota limit hit. **${delaySec}** second mein auto-retry ho raha hai…`,
-            timestamp: new Date().toISOString(), quickActions: [],
-          }]);
-          startRetryCountdown(delaySec, userText, attempt, modelIdx);
-          return;
-        }
-        throw new Error(errMsg);
+        throw new Error(`n8n responded with HTTP ${res.status}`);
       }
 
-      const raw: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-      if (!raw) throw new Error('Empty response');
+      // Read body once, then try parsing as JSON or plain text
+      const bodyText = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(bodyText);
+      } catch {
+        // Response is plain text, not JSON
+        data = bodyText;
+      }
+      const { text, quickActions } = parseN8nResponse(data);
 
-      historyRef.current.push({ role: 'model', parts: [{ text: raw.replace(/QUICK_ACTIONS:.*/gi, '').trim() }] });
-      const { text, quickActions } = parseGeminiResponse(raw);
+      setN8nOnline(true);
       setUsingFallback(false);
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), sender: 'bot', text, timestamp: new Date().toISOString(), quickActions }]);
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        sender: 'bot',
+        text,
+        timestamp: new Date().toISOString(),
+        quickActions,
+      }]);
       speak(text);
     } catch (err: any) {
-      console.warn('[Chatbot] Offline fallback:', err.message);
+      clearTimeout(timeout);
+      console.warn('[Chatbot] n8n unreachable, using fallback:', err.message);
+      setN8nOnline(false);
       setUsingFallback(true);
+
       const { text, quickActions } = getRuleBased(userText);
       setMessages(prev => [...prev, {
-        id: (Date.now() + 2).toString(), sender: 'bot',
-        text: `_(AI temporarily unavailable — built-in knowledge se jawab de raha hoon)_\n\n${text}`,
-        timestamp: new Date().toISOString(), quickActions,
+        id: (Date.now() + 1).toString(),
+        sender: 'bot',
+        text: `_(n8n agent unavailable — built-in knowledge se jawab de raha hoon)_\n\n${text}`,
+        timestamp: new Date().toISOString(),
+        quickActions,
       }]);
       speak(text);
     } finally {
       setIsLoading(false);
     }
-  }, [isMuted]);
+  }, [patientId]);
 
   // ── Send ──────────────────────────────────────────────────────────────────
   const handleSend = async (t: string) => {
     const tr = t.trim();
-    if (!tr || isLoading || retryCountdown !== null) return;
-    historyRef.current.push({ role: 'user', parts: [{ text: tr }] });
-    setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'user', text: tr, timestamp: new Date().toISOString() }]);
+    if (!tr || isLoading) return;
+
+    // Handle Help Center navigation from quick action
+    if (tr === '📖 Open Help Center') {
+      setIsOpen(false);
+      navigate('/dashboard/help-center');
+      return;
+    }
+
+    setMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: tr,
+      timestamp: new Date().toISOString(),
+    }]);
     setInput('');
     setIsLoading(true);
-    await callGeminiWithRetry(tr, 0, 0);
+    await callN8n(tr);
   };
 
   // ── Reset ─────────────────────────────────────────────────────────────────
   const resetChat = () => {
-    if (retryTimerRef.current) { clearInterval(retryTimerRef.current); retryTimerRef.current = null; }
-    pendingRetryRef.current = null;
-    historyRef.current = [];
+    // Generate a fresh session ID on reset
+    const newId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    sessionStorage.setItem('hp_chat_session_id', newId);
+    sessionId.current = newId;
     fbCtx.current = {};
     setMessages(INIT);
     setInput('');
-    setRetryCountdown(null);
     setUsingFallback(false);
     setIsLoading(false);
     window.speechSynthesis?.cancel();
@@ -438,11 +305,10 @@ export default function ChatbotWidget() {
     const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
     if (!SR) { alert('Speech recognition ke liye Chrome ya Edge use karein.'); return; }
     const rec = new SR();
-    // Try Hindi recognition first — falls back to en-IN
     rec.lang = 'hi-IN'; rec.continuous = false; rec.interimResults = false;
-    rec.onstart  = ()    => setIsListening(true);
-    rec.onend    = ()    => setIsListening(false);
-    rec.onerror  = ()    => setIsListening(false);
+    rec.onstart = () => setIsListening(true);
+    rec.onend = () => setIsListening(false);
+    rec.onerror = () => setIsListening(false);
     rec.onresult = (e: any) => { const t = e.results[0][0].transcript; setInput(t); handleSend(t); };
     speechRecognitionRef.current = rec;
     rec.start();
@@ -478,11 +344,17 @@ export default function ChatbotWidget() {
     alignItems: 'center', justifyContent: 'center', ...extra,
   });
 
+  // ─── Status indicator ─────────────────────────────────────────────────────
+  const statusColor = usingFallback ? '#f59e0b' : '#10b981';
+  const statusLabel = usingFallback
+    ? 'Offline Mode'
+    : n8nOnline === null
+      ? 'n8n Agent'
+      : 'n8n · Connected';
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
-      {showVideo && <VideoCallModal onClose={() => setShowVideo(false)} />}
-
       {/* Floating button */}
       <button id="chatbot-toggle" className="chatbot-toggle" onClick={() => setIsOpen(o => !o)} title="Dr. HealthPulse se baat karein">
         {isOpen ? <X size={24} /> : <MessageSquare size={24} />}
@@ -497,38 +369,63 @@ export default function ChatbotWidget() {
               <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'linear-gradient(135deg,#0891b2,#6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', boxShadow: '0 0 12px rgba(8,145,178,0.35)' }}>👨‍⚕️</div>
               <div>
                 <h4 style={{ margin: 0, fontSize: '0.96rem', fontWeight: 700 }}>Dr. HealthPulse</h4>
-                <span style={{ fontSize: '0.7rem', color: usingFallback ? '#f59e0b' : '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 6, height: 6, background: usingFallback ? '#f59e0b' : '#10b981', borderRadius: '50%', display: 'inline-block', animation: 'statusPulse 2s infinite' }} />
-                  {usingFallback ? 'Offline Mode' : `${activeModel}`}
+                <span style={{ fontSize: '0.7rem', color: statusColor, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 6, height: 6, background: statusColor, borderRadius: '50%', display: 'inline-block', animation: 'statusPulse 2s infinite' }} />
+                  {statusLabel}
+                  {patientId && (
+                    <span style={{ marginLeft: 4, opacity: 0.7, color: 'var(--text-muted)' }}>· {patientId}</span>
+                  )}
                 </span>
               </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              {/* 📹 Video call */}
-              <button onClick={() => setShowVideo(true)} title="Video Consultation shuru karein" style={iconBtn({ color: '#6366f1' })}>
-                <Video size={19} />
+              <button onClick={() => { window.location.href = 'tel:108'; }} title="Emergency Call (108)" style={{...iconBtn({ color: '#fff', background: '#ef4444' }), marginRight: 4, animation: 'pulse 2s infinite'}}>
+                <PhoneCall size={16} />
               </button>
-              <button onClick={() => setIsMuted(m => !m)} title={isMuted ? 'Unmute' : 'Mute'} style={iconBtn()}>
+              <button onClick={() => { setIsOpen(false); navigate('/dashboard/telemedicine'); }} title="Start Video Call" style={iconBtn()}>
+                <Video size={18} />
+              </button>
+              <button onClick={() => { setIsOpen(false); navigate('/dashboard/telemedicine'); }} title="Start Voice Call" style={iconBtn()}>
+                <Phone size={18} />
+              </button>
+              <button onClick={() => {
+                setIsMuted(m => {
+                  const next = !m;
+                  isMutedRef.current = next;
+                  if (next) {
+                    // Muting: stop any playing speech
+                    window.speechSynthesis?.cancel();
+                  } else {
+                    // Unmuting: speak the last bot message immediately
+                    const lastBot = [...messages].reverse().find(msg => msg.sender === 'bot');
+                    if (lastBot) {
+                      // Use setTimeout so the ref update commits first
+                      setTimeout(() => speakRef.current(lastBot.text), 50);
+                    }
+                  }
+                  return next;
+                });
+              }} title={isMuted ? 'Unmute' : 'Mute'} style={iconBtn()}>
                 {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
               </button>
-              <button onClick={resetChat} title="Naya conversation shuru karo" style={iconBtn()}>
+              <button onClick={resetChat} title="Naya conversation shuru karo (new session)" style={iconBtn()}>
                 <RefreshCw size={17} />
               </button>
             </div>
           </div>
 
-          {/* ── Banners ──────────────────────────────────────────────────── */}
-          {retryCountdown !== null && (
-            <div style={{ padding: '7px 14px', background: 'rgba(245,158,11,0.1)', borderBottom: '1px solid rgba(245,158,11,0.2)', fontSize: '0.77rem', color: '#d97706', display: 'flex', alignItems: 'center', gap: 7 }}>
-              <AlertCircle size={13} />
-              Rate limit — <strong>{retryCountdown}s</strong> mein auto-retry ho raha hai…
+          {/* ── Status banners ────────────────────────────────────────────── */}
+          {usingFallback && (
+            <div style={{ padding: '7px 14px', background: 'rgba(245,158,11,0.07)', borderBottom: '1px solid rgba(245,158,11,0.18)', fontSize: '0.75rem', color: '#b45309', display: 'flex', alignItems: 'center', gap: 7 }}>
+              <WifiOff size={12} />
+              n8n agent unreachable — built-in responses mode. Check n8n is running on port 5678.
             </div>
           )}
-          {usingFallback && retryCountdown === null && (
-            <div style={{ padding: '7px 14px', background: 'rgba(245,158,11,0.07)', borderBottom: '1px solid rgba(245,158,11,0.18)', fontSize: '0.75rem', color: '#b45309', display: 'flex', alignItems: 'center', gap: 7 }}>
-              <AlertCircle size={12} />
-              Built-in mode — AI quota khatam. Jawab reliable hain par AI-generated nahi.
+          {!usingFallback && n8nOnline && (
+            <div style={{ padding: '5px 14px', background: 'rgba(16,185,129,0.06)', borderBottom: '1px solid rgba(16,185,129,0.15)', fontSize: '0.72rem', color: '#059669', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Wifi size={11} />
+              Connected to n8n · session: <code style={{ fontFamily: 'monospace', marginLeft: 4 }}>{sessionId.current}</code>
             </div>
           )}
 
@@ -546,13 +443,13 @@ export default function ChatbotWidget() {
                   <div style={{ fontSize: '0.62rem', marginTop: 5, textAlign: 'right', opacity: 0.55 }}>{ftime(msg.timestamp)}</div>
                 </div>
                 {/* Quick-action pills (only on last message) */}
-                {msg.quickActions && msg.quickActions.length > 0 && idx === messages.length - 1 && !isLoading && retryCountdown === null && (
+                {msg.quickActions && msg.quickActions.length > 0 && idx === messages.length - 1 && !isLoading && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10, justifyContent: msg.sender === 'bot' ? 'flex-start' : 'flex-end' }}>
                     {msg.quickActions.map((a, i) => (
                       <button key={i} disabled={isLoading} onClick={() => handleSend(a)}
                         style={{ fontSize: '0.77rem', padding: '6px 12px', borderRadius: 20, fontWeight: 500, border: '1.5px solid var(--accent-primary)', backgroundColor: 'transparent', color: 'var(--accent-primary)', cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap' }}
                         onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--accent-primary)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
-                        onMouseOut={e  => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent-primary)'; }}
+                        onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent-primary)'; }}
                       >{a}</button>
                     ))}
                   </div>
@@ -570,7 +467,7 @@ export default function ChatbotWidget() {
                       <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block', animation: `typingDot 1.2s ${i * 0.2}s infinite` }} />
                     ))}
                   </div>
-                  <span style={{ fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>Doctor likh raha hai…</span>
+                  <span style={{ fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>n8n agent se pooch raha hoon…</span>
                 </div>
               </div>
             )}
@@ -585,19 +482,21 @@ export default function ChatbotWidget() {
               {isListening ? <MicOff size={19} /> : <Mic size={19} />}
             </button>
             {/* Text */}
-            <input id="chatbot-input" value={input}
+            <input
+              id="chatbot-input"
+              value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend(input)}
-              placeholder={isListening ? '🎤 Sun raha hoon…' : retryCountdown ? `Retry ${retryCountdown}s mein…` : 'Apni takleef batayein (Hindi/English)…'}
-              disabled={isLoading || isListening || retryCountdown !== null}
+              placeholder={isListening ? '🎤 Sun raha hoon…' : 'Apni takleef batayein (Hindi/English)…'}
+              disabled={isLoading || isListening}
               style={{ flex: 1, padding: '11px 16px', borderRadius: 24, fontSize: '0.9rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)', outline: 'none', transition: 'border 0.2s' }}
               onFocus={e => (e.target.style.borderColor = 'var(--accent-primary)')}
-              onBlur={e  => (e.target.style.borderColor = 'var(--border-color)')}
+              onBlur={e => (e.target.style.borderColor = 'var(--border-color)')}
             />
             {/* Send */}
-            <button onClick={() => handleSend(input)} disabled={isLoading || !input.trim() || retryCountdown !== null} title="Bhejein"
-              style={{ flexShrink: 0, padding: 10, borderRadius: '50%', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', background: !input.trim() || isLoading || retryCountdown !== null ? 'var(--border-color)' : 'var(--accent-primary)', color: '#fff', cursor: !input.trim() || isLoading || retryCountdown !== null ? 'not-allowed' : 'pointer' }}>
-              <Send size={19} />
+            <button onClick={() => handleSend(input)} disabled={isLoading || !input.trim()} title="Bhejein"
+              style={{ flexShrink: 0, padding: 10, borderRadius: '50%', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', background: !input.trim() || isLoading ? 'var(--border-color)' : 'var(--accent-primary)', color: '#fff', cursor: !input.trim() || isLoading ? 'not-allowed' : 'pointer' }}>
+              {isLoading ? <Loader2 size={19} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={19} />}
             </button>
           </div>
         </div>

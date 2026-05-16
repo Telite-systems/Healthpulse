@@ -12,6 +12,7 @@ interface AuthContextType {
   user: User | null;
   session: AuthSession | null;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (data: { name: string; email: string; phone: string; username: string; password: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -87,6 +88,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const register = useCallback(async (data: { name: string; email: string; phone: string; username: string; password: string }): Promise<{ success: boolean; error?: string }> => {
+    try {
+      setIsLoading(true);
+      const response = await api.register(data);
+      const { token, user: registeredUser, expiresAt } = response.data;
+
+      setUser(registeredUser);
+      setSession({ token, expiresAt, loginTime: Date.now() });
+
+      setIsLoading(false);
+      return { success: true };
+    } catch (e: any) {
+      setIsLoading(false);
+      return { success: false, error: e?.message || e?.detail || 'Registration failed' };
+    }
+  }, []);
+
   const logout = useCallback(() => {
     api.logout();
     setUser(null);
@@ -99,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       session,
       login,
+      register,
       logout,
       isAuthenticated: !!user && !!session,
       isLoading,

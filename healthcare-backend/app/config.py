@@ -3,7 +3,7 @@
 # Loads settings from .env file using pydantic-settings
 # ============================================
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 from typing import List
 
 
@@ -32,14 +32,19 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
 
+    # External APIs (optional)
+    groq_api_key: str = ""
+    supabase_url: str = ""
+    supabase_service_key: str = ""
+
     @property
     def cors_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-    )
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        extra = "allow"
 
 
 # Singleton settings instance
