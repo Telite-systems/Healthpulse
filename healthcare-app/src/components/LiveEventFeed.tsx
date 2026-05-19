@@ -5,10 +5,10 @@
 // ============================================
 
 import { useState, useEffect, useRef } from 'react';
-import { Activity, Heart, Calendar, DollarSign, AlertTriangle, Server, Users } from 'lucide-react';
+import { Activity, Heart, Calendar, DollarSign, Server, Users } from 'lucide-react';
 import { ws, type WSEvent } from '../services/websocket';
 
-const typeIcons: Record<WSEvent['type'], JSX.Element> = {
+const typeIcons: Record<WSEvent['type'], React.JSX.Element> = {
   patient_alert: <Heart size={14} />,
   appointment_update: <Calendar size={14} />,
   vital_update: <Activity size={14} />,

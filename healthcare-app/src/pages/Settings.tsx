@@ -2,13 +2,13 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useToastContext } from '../context/ToastContext';
 import { api } from '../services/api';
-import { Moon, Sun, Bell, Shield, Globe, Palette, Clock, Key, History, Trash2, Database, Wifi } from 'lucide-react';
+import { Bell, Shield, Globe, Palette, Clock, Key, History, Trash2, Database, Wifi } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { db } from '../services/realtimeDb';
 
 export default function SettingsPage() {
   const { isDark, toggleTheme } = useTheme();
-  const { user, session, sessionTimeRemaining } = useAuth();
+  const { user, sessionTimeRemaining } = useAuth();
   const toast = useToastContext();
   const [loginHistory, setLoginHistory] = useState<any[]>([]);
   const [dbStatus, setDbStatus] = useState('connected');

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
-  Video, Mic, MicOff, VideoOff, PhoneOff, MessageSquare,
-  Pill, FileText, ClipboardList, ChevronDown, ChevronUp,
+  Video, Mic, MicOff, VideoOff, PhoneOff,
+  Pill, FileText, ClipboardList,
   Send, Heart, AlertCircle, CheckCircle, Clock
 } from 'lucide-react';
 import callService from '../services/callService';
@@ -46,7 +46,7 @@ export default function DoctorPatientConsult({ patientName = 'Rahul Sharma', cal
   const videoRef  = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const timerRef  = useRef<ReturnType<typeof setInterval>>();
+  const timerRef  = useRef<ReturnType<typeof setInterval>>(undefined);
 
   useEffect(() => {
     timerRef.current = setInterval(() => setCallTime(t => t + 1), 1000);

@@ -54,7 +54,7 @@ export default function DoctorDashboard() {
   const [patients, setPatients] = useState<any[]>(FALLBACK_PATIENTS);
   const [appointments, setAppointments] = useState<any[]>(FALLBACK_APPOINTMENTS);
   const [prescriptions, setPrescriptions] = useState<any[]>(FALLBACK_PRESCRIPTIONS);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [prescriptionForm, setPrescriptionForm] = useState({ patient: '', medicines: '', dosage: '', duration: '', instructions: '' });
   const [showPrescForm, setShowPrescForm] = useState(false);
@@ -164,7 +164,7 @@ export default function DoctorDashboard() {
       a.id === id ? { ...a, status: newStatus } : a
     ));
     try {
-      await api.update('appointments', id, { status: newStatus });
+      await api.update('appointments', id, { status: newStatus } as any);
       toast.success('Appointment Updated', `Appointment ${newStatus.toLowerCase()}`);
     } catch {
       toast.info('Updated Locally', 'Change saved locally (backend sync pending)');

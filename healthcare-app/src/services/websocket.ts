@@ -1,10 +1,12 @@
 // ============================================
 // WebSocket Service
-// Connects to real WebSocket at ws://localhost:8000/ws
+// Connects to backend WebSocket via relative /ws path
+// Proxied by Vite (dev) or nginx (Docker)
 // Falls back to simulated events if connection fails
 // ============================================
 
-const WS_URL = 'ws://localhost:8000/ws';
+const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL = `${WS_PROTOCOL}//${window.location.host}/ws`;
 
 export interface WSEvent {
   id: string;

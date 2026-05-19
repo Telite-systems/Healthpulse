@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   Search, X, ChevronRight, ChevronDown, BookOpen, Plus, Trash2, Edit3, Save,
@@ -8,7 +8,7 @@ import {
   getArticles, getArticlesByRole, searchArticles, getArticleById,
   saveArticle, deleteArticle, getCategoryArticleCount,
   HELP_CATEGORIES,
-  type HelpArticle, type HelpRole, type HelpStep,
+  type HelpArticle, type HelpRole,
 } from '../data/helpCenterData';
 
 // ─── Admin Article Editor Component ─────────────────────────────────────────

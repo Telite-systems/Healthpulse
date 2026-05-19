@@ -1,331 +1,237 @@
-# AWS Deployment Guide - HealthPulse
-
-Complete guide for deploying HealthPulse (Backend + Frontend + n8n) to AWS.
-
-## Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────┐
-│                     AWS Environment                 │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  ┌─────────────────┐     ┌──────────────────┐      │
-│  │   ALB/NLB       │────▶│  ECS Fargate     │      │
-│  │ (Load Balancer) │     │  - Frontend      │      │
-│  └─────────────────┘     │  - Backend       │      │
-│          ▲               │  - n8n           │      │
-│          │               └──────────────────┘      │
-│          │                      │                  │
-│     Internet                     ▼                  │
-│                          ┌──────────────────┐      │
-│                          │  MongoDB Atlas   │      │
-│                          │  (Managed DB)    │      │
-│                          └──────────────────┘      │
-│                                                     │
-│  ┌─────────────────────────────────────────────┐  │
-│  │        AWS Services                         │  │
-│  │ - ECS Cluster                              │  │
-│  │ - CloudWatch (Logging)                     │  │
-│  │ - ECR (Container Registry)                 │  │
-│  │ - Secrets Manager (Sensitive Data)         │  │
-│  │ - RDS or EBS (Storage)                     │  │
-│  └─────────────────────────────────────────────┘  │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
+# HealthPulse — AWS EC2 Deployment Guide
 
 ## Prerequisites
 
-- AWS Account with appropriate permissions
-- AWS CLI configured (`aws configure`)
-- Docker installed locally
-- ECR repository created for images
-- MongoDB Atlas account (or RDS PostgreSQL/MySQL)
-- Domain name (optional, for production)
+| What | Minimum |
+|------|---------|
+| EC2 Instance | `t2.medium` (2 vCPU, 4 GB RAM) |
+| OS | Amazon Linux 2023 or Ubuntu 22.04 |
+| Storage | 20 GB EBS |
+| Security Group | Ports 22, 80, 8000, 5678 open |
 
-## Step 1: Prepare Environment Variables
+---
 
-Create `.env.aws` from the template:
+## Step 1 — Launch EC2 Instance
 
-```bash
-cp .env.aws.example .env.aws
-```
+1. Go to **AWS Console → EC2 → Launch Instance**
+2. Choose **Amazon Linux 2023** or **Ubuntu 22.04**
+3. Instance type: **t2.medium** (minimum for running 4 containers)
+4. Key pair: Create or select an existing `.pem` key
+5. Security Group — add these **Inbound Rules**:
 
-Edit `.env.aws` with your AWS details:
+| Port | Protocol | Source | Purpose |
+|------|----------|--------|---------|
+| 22 | TCP | Your IP | SSH access |
+| 80 | TCP | 0.0.0.0/0 | Frontend (nginx) |
+| 8000 | TCP | 0.0.0.0/0 | Backend API (optional, nginx proxies it) |
+| 5678 | TCP | Your IP | n8n Editor (restrict to your IP!) |
 
-```bash
-# Production settings
-DEBUG=False
-MONGODB_URL=mongodb+srv://username:password@cluster.mongodb.net/?appName=Cluster0
-JWT_SECRET_KEY=your-very-secure-random-string-min-32-chars
-CORS_ORIGINS=https://your-domain.com,https://n8n.your-domain.com
-N8N_HOST=n8n.your-domain.com
-N8N_PROTOCOL=https
-WEBHOOK_TUNNEL_URL=https://n8n.your-domain.com/
-```
+6. Launch and note your **Public IPv4** address
 
-## Step 2: Create ECR Repositories
+---
 
-```bash
-# Create repositories for each service
-aws ecr create-repository --repository-name healthpulse-backend --region us-east-1
-aws ecr create-repository --repository-name healthpulse-frontend --region us-east-1
-aws ecr create-repository --repository-name healthpulse-n8n --region us-east-1
-
-# Get login token
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
-```
-
-## Step 3: Build and Push Docker Images
+## Step 2 — SSH into the Instance
 
 ```bash
-# Backend
-docker build -t healthpulse-backend:latest ./healthcare-backend
-docker tag healthpulse-backend:latest <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/healthpulse-backend:latest
-docker push <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/healthpulse-backend:latest
+# Make key readable
+chmod 400 your-key.pem
 
-# Frontend
-docker build -t healthpulse-frontend:latest ./healthcare-app
-docker tag healthpulse-frontend:latest <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/healthpulse-frontend:latest
-docker push <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/healthpulse-frontend:latest
-
-# n8n (use official image or custom)
-docker tag n8nio/n8n:latest <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/healthpulse-n8n:latest
-docker push <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/healthpulse-n8n:latest
+# Connect
+ssh -i your-key.pem ec2-user@YOUR_EC2_IP
+# or for Ubuntu:
+ssh -i your-key.pem ubuntu@YOUR_EC2_IP
 ```
 
-## Step 4: Store Secrets in AWS Secrets Manager
+---
+
+## Step 3 — Install Git & Clone the Repo
 
 ```bash
-# Store sensitive environment variables
-aws secretsmanager create-secret --name healthpulse/jwt-secret \
-  --secret-string "your-very-secure-jwt-key"
+# Amazon Linux
+sudo yum install -y git
 
-aws secretsmanager create-secret --name healthpulse/mongodb-url \
-  --secret-string "mongodb+srv://username:password@cluster..."
+# Ubuntu
+# sudo apt-get update && sudo apt-get install -y git
 
-aws secretsmanager create-secret --name healthpulse/cors-origins \
-  --secret-string "https://your-domain.com,https://n8n.your-domain.com"
+# Clone your repo
+git clone https://github.com/YOUR_USERNAME/Healthpulse.git
+cd Healthpulse
 ```
 
-## Step 5: Deploy to ECS
+---
 
-### Option A: Using AWS CloudFormation
-
-Create `cloudformation-stack.json` or use AWS Copilot:
+## Step 4 — Run the Deploy Script
 
 ```bash
-# Initialize with AWS Copilot
-copilot app init healthpulse
-copilot env init --name prod --profile default --default-config
-copilot svc init --name backend --dockerfile ./healthcare-backend/Dockerfile
-copilot svc deploy
+chmod +x deploy-ec2.sh
+./deploy-ec2.sh
 ```
 
-### Option B: Manual ECS Deployment
+This script will automatically:
+- ✅ Install Docker & Docker Compose
+- ✅ Create `.env` with your EC2 public IP
+- ✅ Generate a secure JWT secret
+- ✅ Build all 4 containers (backend, frontend, n8n, n8n-init)
+- ✅ Run health checks
 
-1. Create ECS Cluster in AWS Console
-2. Create Task Definition with 3 containers:
-   - `healthpulse-backend`
-   - `healthpulse-frontend`
-   - `healthpulse-n8n`
+> **⚠️ First run**: After Docker installs, you may need to log out and back in for Docker group permissions:
+> ```bash
+> exit
+> ssh -i your-key.pem ec2-user@YOUR_EC2_IP
+> cd Healthpulse
+> ./deploy-ec2.sh
+> ```
 
-3. Create ECS Service
-4. Configure Load Balancer (ALB/NLB)
-5. Set target groups for port routing
+---
 
-### Option C: Using Docker Compose with AWS CLI
+## Step 5 — Verify Deployment
+
+Once the script finishes, check:
 
 ```bash
-# Deploy docker-compose to ECS
-docker compose -f docker-compose.aws.yml config | \
-  ecs-cli compose --project-name healthpulse \
-  --cluster healthpulse-cluster \
-  service create
+# All containers running?
+docker compose ps
+
+# Expected output:
+# healthpulse-backend    Running   0.0.0.0:8000->8000
+# healthpulse-frontend   Running   0.0.0.0:80->80
+# healthpulse-n8n        Running   0.0.0.0:5678->5678
+# healthpulse-n8n-init   Exited (0)  ← Normal, it's a one-shot
+
+# Test endpoints
+curl http://localhost/api/health        # Backend via nginx
+curl http://localhost:8000/api/health   # Backend direct
+curl http://localhost:5678/healthz      # n8n
 ```
 
-## Step 6: Configure Networking
+Then open in your browser:
+- **Frontend**: `http://YOUR_EC2_IP`
+- **n8n Editor**: `http://YOUR_EC2_IP:5678`
 
-### Setup ALB (Application Load Balancer)
+---
+
+## Step 6 — Configure n8n Workflows
+
+1. Open `http://YOUR_EC2_IP:5678` in your browser
+2. The two workflows should be auto-imported
+3. Open each workflow → **Credentials** → Add your Supabase/API keys
+4. **Activate** both workflows
+
+---
+
+## Manual Deployment (Without Script)
+
+If you prefer to do it manually:
 
 ```bash
-# Create security group
-aws ec2 create-security-group --group-name healthpulse-alb \
-  --description "SecurityGroup for HealthPulse ALB"
+# 1. Install Docker
+sudo yum install -y docker
+sudo systemctl start docker && sudo systemctl enable docker
+sudo usermod -aG docker $USER
 
-# Open ports
-aws ec2 authorize-security-group-ingress --group-name healthpulse-alb \
-  --protocol tcp --port 80 --cidr 0.0.0.0/0
+# 2. Install Docker Compose
+DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
+mkdir -p "$DOCKER_CONFIG/cli-plugins"
+curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
+  -o "$DOCKER_CONFIG/cli-plugins/docker-compose"
+chmod +x "$DOCKER_CONFIG/cli-plugins/docker-compose"
 
-aws ec2 authorize-security-group-ingress --group-name healthpulse-alb \
-  --protocol tcp --port 443 --cidr 0.0.0.0/0
+# 3. Log out and back in (for docker group)
+exit
+# ssh back in...
+
+# 4. Create .env file (edit with your values)
+cp .env.aws.example .env
+nano .env    # Update MONGODB_URL, JWT_SECRET_KEY, EC2 IP, etc.
+
+# 5. Copy env to backend
+cp .env healthcare-backend/.env
+
+# 6. Make scripts executable
+chmod +x init-n8n-workflows.sh
+
+# 7. Build & start
+docker compose up --build -d
+
+# 8. Check logs
+docker compose logs -f
 ```
 
-### Setup Route 53 (DNS)
+---
+
+## Useful Commands
 
 ```bash
-# Create Route 53 record
-aws route53 change-resource-record-sets \
-  --hosted-zone-id <ZONE_ID> \
-  --change-batch '{
-    "Changes": [{
-      "Action": "CREATE",
-      "ResourceRecordSet": {
-        "Name": "healthpulse.your-domain.com",
-        "Type": "A",
-        "AliasTarget": {
-          "HostedZoneId": "<ALB_ZONE_ID>",
-          "DNSName": "<ALB_DNS_NAME>",
-          "EvaluateTargetHealth": false
-        }
-      }
-    }]
-  }'
+# View live logs
+docker compose logs -f
+
+# View specific service logs
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f n8n
+
+# Check n8n workflow import
+docker logs healthpulse-n8n-init
+
+# Restart everything
+docker compose restart
+
+# Rebuild after code changes
+docker compose up --build -d
+
+# Stop everything
+docker compose down
+
+# Full reset (removes volumes too)
+docker compose down -v
 ```
 
-## Step 7: Import n8n Workflows
+---
 
-Once n8n is running on AWS:
+## Updating After Code Changes
 
 ```bash
-# Port-forward to n8n (if using bastion host)
-ssh -i key.pem -L 5678:n8n-service:5678 ec2-user@bastion
+# Pull latest code
+git pull origin main
 
-# Run import script
-.\import-n8n-workflows.ps1 -N8nUrl "http://localhost:5678"
-
-# Or manually via AWS Console:
-# 1. SSH into ECS instance
-# 2. Copy workflow files
-# 3. Use n8n API to import
+# Rebuild and restart
+docker compose up --build -d
 ```
 
-## Step 8: Set Up CloudWatch Monitoring
+---
+
+## Optional: Add HTTPS with Custom Domain
+
+If you have a domain name:
 
 ```bash
-# Create CloudWatch Log Group
-aws logs create-log-group --log-group-name /ecs/healthpulse
+# 1. Point your domain A record to EC2 public IP
 
-# Setup alarms
-aws cloudwatch put-metric-alarm \
-  --alarm-name healthpulse-backend-cpu \
-  --alarm-description "Alert on high CPU" \
-  --metric-name CPUUtilization \
-  --namespace AWS/ECS \
-  --statistic Average \
-  --period 300 \
-  --threshold 80 \
-  --comparison-operator GreaterThanThreshold
+# 2. Install Certbot
+sudo yum install -y certbot python3-certbot-nginx  # Amazon Linux
+# sudo apt install -y certbot python3-certbot-nginx  # Ubuntu
+
+# 3. Get SSL certificate
+sudo certbot --nginx -d yourdomain.com
+
+# 4. Update .env
+# CORS_ORIGINS=https://yourdomain.com
+# N8N_EDITOR_BASE_URL=https://n8n.yourdomain.com
+
+# 5. Rebuild
+docker compose up --build -d
 ```
 
-## Step 9: Configure SSL/TLS
-
-```bash
-# Request SSL certificate from AWS Certificate Manager
-aws acm request-certificate \
-  --domain-name your-domain.com \
-  --subject-alternative-names n8n.your-domain.com \
-  --validation-method DNS
-
-# Add certificate to ALB listener
-# (Done via AWS Console or CLI)
-```
-
-## Deployment Verification
-
-### Check Container Health
-
-```bash
-# List running tasks
-aws ecs list-tasks --cluster healthpulse-cluster
-
-# Describe task
-aws ecs describe-tasks --cluster healthpulse-cluster --tasks <TASK_ARN>
-
-# Check logs
-aws logs tail /ecs/healthpulse --follow
-```
-
-### Test Services
-
-```bash
-# Backend API
-curl https://api.your-domain.com/docs
-
-# Frontend
-curl https://your-domain.com
-
-# n8n
-curl https://n8n.your-domain.com
-```
-
-## Auto-Scaling Configuration
-
-```bash
-# Register scalable target
-aws application-autoscaling register-scalable-target \
-  --service-namespace ecs \
-  --resource-id service/healthpulse-cluster/backend \
-  --scalable-dimension ecs:service:DesiredCount \
-  --min-capacity 2 \
-  --max-capacity 10
-
-# Create scaling policy
-aws application-autoscaling put-scaling-policy \
-  --policy-name healthpulse-scale-up \
-  --service-namespace ecs \
-  --resource-id service/healthpulse-cluster/backend \
-  --scalable-dimension ecs:service:DesiredCount \
-  --policy-type TargetTrackingScaling \
-  --target-tracking-scaling-policy-configuration file://scaling-policy.json
-```
+---
 
 ## Troubleshooting
 
-### Container won't start
-
-```bash
-# Check ECS task logs
-aws logs get-log-events \
-  --log-group-name /ecs/healthpulse \
-  --log-stream-name <LOG_STREAM>
-```
-
-### MongoDB connection issues
-
-- Verify security group allows connection from ECS
-- Check MongoDB Atlas network access settings
-- Verify connection string format
-
-### n8n workflows not syncing
-
-- Check volume mount permissions
-- Verify workflow files in ECS task
-- Use n8n API to import workflows directly
-
-## Cleanup
-
-```bash
-# Stop and remove ECS service
-aws ecs update-service --cluster healthpulse-cluster \
-  --service backend --desired-count 0
-
-aws ecs delete-service --cluster healthpulse-cluster --service backend
-
-# Delete CloudFormation stack
-aws cloudformation delete-stack --stack-name healthpulse
-
-# Remove ECR repositories
-aws ecr delete-repository --repository-name healthpulse-backend --force
-```
-
-## Next Steps
-
-1. ✅ Setup CloudFront for frontend caching
-2. ✅ Configure backup strategies for MongoDB
-3. ✅ Set up CI/CD pipeline (GitHub Actions / GitLab CI)
-4. ✅ Implement health checks and auto-recovery
-5. ✅ Setup cost monitoring and alerts
-
-For detailed AWS CLI documentation, visit: https://docs.aws.amazon.com/cli/
-For n8n deployment help: https://docs.n8n.io/hosting/installation/
+| Issue | Solution |
+|-------|----------|
+| `Cannot connect to Docker daemon` | Run `sudo systemctl start docker` or re-login for group perms |
+| Frontend shows blank page | Check `docker compose logs frontend` — nginx config issue |
+| Backend 502 error | Backend container may still be starting — wait 30s and retry |
+| n8n workflows not imported | Check `docker logs healthpulse-n8n-init` |
+| CORS errors in browser | Add your EC2 IP to `CORS_ORIGINS` in `.env` and rebuild |
+| Can't access from browser | Check EC2 Security Group inbound rules (ports 80, 5678) |
+| Out of memory | Upgrade to `t2.medium` or higher (4 containers need ~3GB RAM) |

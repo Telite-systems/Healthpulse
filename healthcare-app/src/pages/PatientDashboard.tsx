@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { db } from '../services/realtimeDb';
 import type { Doctor } from '../types';
 import {
-  Calendar, FileText, Bell, Download, Clock, CheckCircle,
+  Calendar, FileText, Bell, Download, CheckCircle,
   Pill, Video, Phone, Activity, Heart, ChevronRight,
   Star, MessageSquare, AlertCircle, Thermometer, Loader2,
   Filter, Search, Stethoscope
@@ -65,7 +65,7 @@ export default function PatientDashboard() {
   const [myPrescriptions, setMyPrescriptions] = useState(FB_PRESCRIPTIONS);
   const [myRecords, setMyRecords] = useState(FB_RECORDS);
   const [myNotifications, setMyNotifications] = useState(FB_NOTIFICATIONS);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [bookingStep, setBookingStep] = useState(1);
   const [selectedDoctor, setSelectedDoctor] = useState<BookingDoctor | null>(null);
   const [selectedDate, setSelectedDate] = useState('2026-04-25');

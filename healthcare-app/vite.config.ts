@@ -6,12 +6,20 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // All /api/n8n/* requests are forwarded to the local n8n instance
-      // This avoids CORS issues during development.
-      '/api/n8n': {
+      // Backend API — all /api/* requests → FastAPI on port 8000
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      // n8n webhooks — /webhook/* requests → n8n on port 5678
+      '/webhook': {
         target: 'http://localhost:5678',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/n8n/, ''),
+      },
+      // Backend WebSocket — /ws → FastAPI WS on port 8000
+      '/ws': {
+        target: 'ws://localhost:8000',
+        ws: true,
       },
     },
   },

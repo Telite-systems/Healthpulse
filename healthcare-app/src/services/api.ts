@@ -1,10 +1,10 @@
 // ============================================
 // Backend API Client
 // Real HTTP client connecting to FastAPI backend
-// at http://localhost:8000
+// Uses relative URLs — proxied by Vite (dev) or nginx (Docker)
 // ============================================
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = '';
 
 export interface ApiResponse<T> {
   data: T;
@@ -85,7 +85,7 @@ class ApiService {
       this.logRequest(endpoint, method, duration, 0);
       throw {
         status: 0,
-        message: 'Network error — is the backend running on localhost:8000?',
+        message: 'Network error — is the backend running?',
         code: 'NETWORK_ERROR',
         timestamp: Date.now(),
       } as ApiError;

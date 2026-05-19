@@ -22,6 +22,12 @@ services:
       - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES}
       - CORS_ORIGINS=${CORS_ORIGINS}
       - LOG_LEVEL=${LOG_LEVEL}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   frontend:
     build:
@@ -31,6 +37,11 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+    depends_on:
+      backend:
+        condition: service_started
+      n8n:
+        condition: service_started
 
   n8n:
     image: n8nio/n8n:latest
@@ -42,12 +53,37 @@ services:
       - N8N_HOST=${N8N_HOST}
       - N8N_PORT=5678
       - N8N_PROTOCOL=${N8N_PROTOCOL}
+      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-http://localhost:5678}
       - NODE_ENV=production
-      - WEBHOOK_TUNNEL_URL=${WEBHOOK_TUNNEL_URL}
+      - WEBHOOK_URL=${WEBHOOK_TUNNEL_URL}
+      - N8N_RUNNERS_DISABLED=true
       - SUPABASE_SECRET_KEY=${SUPABASE_SECRET_KEY}
     volumes:
       - n8n_data:/home/node/.n8n
-      - ./n8n\ workflow:/home/node/.n8n/workflows
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  n8n-init:
+    image: n8nio/n8n:latest
+    container_name: healthpulse-n8n-init
+    depends_on:
+      n8n:
+        condition: service_healthy
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n workflow:/workflows:ro
+      - ./init-n8n-workflows.sh:/init-n8n-workflows.sh:ro
+    entrypoint: ["/bin/sh", "/init-n8n-workflows.sh"]
+    environment:
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL}
+      - NODE_ENV=production
+    restart: "no"
 
 volumes:
   n8n_data:

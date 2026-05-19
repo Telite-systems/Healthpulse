@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Heart } from 'lucide-react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
@@ -68,7 +68,7 @@ function ProtectedRoute() {
 }
 
 /** Role-gated route — redirects if user lacks required role */
-function RoleRoute({ roles, children }: { roles: string[]; children: JSX.Element }) {
+function RoleRoute({ roles, children }: { roles: string[]; children: React.JSX.Element }) {
   const { user } = useAuth();
   if (!user || !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
   return children;
@@ -78,7 +78,6 @@ function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeConsult, setActiveConsult] = useState<CallState | null>(null);
-  const navigate = useNavigate();
 
   const handleCallAccepted = (call: CallState) => {
     setActiveConsult(call);

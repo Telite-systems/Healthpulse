@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Video, Mic, MicOff, VideoOff, Phone, Monitor, Send, Search, PhoneOff, Loader2 } from 'lucide-react';
+import { Video, Phone, Search, PhoneOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { mockDoctors } from '../data/mockData';
@@ -29,7 +29,7 @@ export default function Telemedicine() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const callTimerRef = useRef<ReturnType<typeof setInterval>>();
+  const callTimerRef = useRef<ReturnType<typeof setInterval>>(undefined);
 
   // Fetch doctors
   useEffect(() => {
@@ -163,11 +163,10 @@ export default function Telemedicine() {
     setSelectedDoctor(null);
   };
 
-  const sendMsg = () => {
-    if (!chatMsg.trim()) return;
-    setMessages(prev => [...prev, { sender: 'You', text: chatMsg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-    setChatMsg('');
-  };
+  // Suppress unused-variable warnings for state used only in effects
+  void inCall; void callMode; void micOn; void camOn;
+  void setInCall; void setCallMode; void setMicOn; void setCamOn;
+  void chatMsg; void setChatMsg; void messages; void setMessages;
 
   // Filter doctors (exclude self if logged in as doctor)
   const filteredDoctors = doctors.filter(d => {

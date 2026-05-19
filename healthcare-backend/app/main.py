@@ -69,6 +69,11 @@ app.add_middleware(
         "http://127.0.0.1:5174",
         "http://127.0.0.1:5175",
         "http://127.0.0.1:3000",
+        # Docker production origins (frontend served via nginx on port 80)
+        "http://localhost",
+        "http://localhost:80",
+        # n8n container (for internal webhook calls)
+        "http://localhost:5678",
         *settings.cors_origins_list,
     ],
     allow_credentials=True,

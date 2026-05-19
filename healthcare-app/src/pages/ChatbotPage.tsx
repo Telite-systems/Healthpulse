@@ -1,4 +1,4 @@
-import ChatbotWidget from '../components/ChatbotWidget';
+// ChatbotPage — info page that directs users to the floating chatbot widget
 
 export default function ChatbotPage() {
   return (

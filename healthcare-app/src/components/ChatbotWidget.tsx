@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   MessageSquare, Send, Mic, MicOff, X, Loader2,
-  Volume2, VolumeX, RefreshCw, AlertCircle, Wifi, WifiOff,
+  Volume2, VolumeX, RefreshCw, Wifi, WifiOff,
   Video, Phone, PhoneCall
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -21,7 +21,8 @@ export interface ChatMessage {
 
 // ─── Configuration ─────────────────────────────────────────────────────────────
 
-const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook/chat';
+// Relative URL — proxied by Vite (dev) or nginx (Docker) to n8n
+const N8N_WEBHOOK_URL = '/webhook/chat';
 const REQUEST_TIMEOUT_MS = 30_000; // 30 s
 
 // ─── Session ID — persisted for the browser tab ────────────────────────────────
