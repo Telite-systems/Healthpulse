@@ -41,7 +41,7 @@ export default function ZegoCallRoom({
 
   useEffect(() => {
     initCountRef.current += 1;
-    const thisInit = initCountRef.current;
+    const _thisInit = initCountRef.current;
     let active = true;
     userEndedRef.current = false;
 
