@@ -1,1 +1,0 @@
-# HealthPulse Backend Application
