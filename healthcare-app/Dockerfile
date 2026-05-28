@@ -5,9 +5,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci || npm install
 
-COPY index.html .
-COPY tsconfig*.json .
-COPY vite.config.ts .
+COPY index.html ./
+COPY tsconfig*.json ./
+COPY vite.config.ts ./
 COPY .env* ./
 COPY public ./public
 COPY src ./src
