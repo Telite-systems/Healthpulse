@@ -1,0 +1,156 @@
+# ============================================================
+# HealthPulse — Continuous Deployment to AWS EC2
+# ============================================================
+# Triggers: push to main (after CI passes)
+# Method:   SSH into EC2 → git pull → docker compose rebuild
+# ============================================================
+
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+
+# Only one deploy at a time
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  # ── Run CI first ────────────────────────────────────────────
+  ci:
+    name: 🔍 CI Checks
+    uses: ./.github/workflows/ci.yml
+
+  # ── Deploy to EC2 ──────────────────────────────────────────
+  deploy:
+    name: 🚀 Deploy to EC2
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          command_timeout: 10m
+          script: |
+            set -e
+
+            echo "╔══════════════════════════════════════════════════════════╗"
+            echo "║     HealthPulse — Automated Deployment Starting        ║"
+            echo "╚══════════════════════════════════════════════════════════╝"
+
+            # ── Navigate to project ──────────────────────────────────
+            DEPLOY_PATH="${{ secrets.EC2_DEPLOY_PATH }}"
+            if [ -z "$DEPLOY_PATH" ]; then
+              DEPLOY_PATH="$HOME/Healthpulse"
+            fi
+
+            echo "📂 Deploy path: $DEPLOY_PATH"
+            cd "$DEPLOY_PATH"
+
+            # ── Pull latest code ─────────────────────────────────────
+            echo ""
+            echo "📥 Pulling latest code from main..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            # ── Sync .env to backend ─────────────────────────────────
+            echo ""
+            echo "📋 Syncing environment files..."
+            if [ -f .env ]; then
+              cp .env healthcare-backend/.env
+              echo "✅ .env copied to healthcare-backend/"
+            else
+              echo "⚠️  No .env found — using existing backend .env"
+            fi
+
+            # ── Make scripts executable ──────────────────────────────
+            chmod +x init-n8n-workflows.sh 2>/dev/null || true
+            chmod +x scripts/*.sh 2>/dev/null || true
+
+            # ── Rebuild & restart containers ─────────────────────────
+            echo ""
+            echo "🐳 Rebuilding and restarting containers..."
+            docker compose down --remove-orphans 2>/dev/null || true
+            docker compose up --build -d
+
+            # ── Wait for services to start ───────────────────────────
+            echo ""
+            echo "⏳ Waiting 30s for services to start..."
+            sleep 30
+
+            # ── Health checks with retries ───────────────────────────
+            echo ""
+            echo "🏥 Running health checks..."
+
+            check_health() {
+              local name="$1"
+              local url="$2"
+              local retries=10
+              local delay=5
+
+              for i in $(seq 1 $retries); do
+                if curl -sf "$url" > /dev/null 2>&1; then
+                  echo "  ✅ $name — Healthy"
+                  return 0
+                fi
+                if [ $i -lt $retries ]; then
+                  echo "  ⏳ $name — Attempt $i/$retries, retrying in ${delay}s..."
+                  sleep $delay
+                fi
+              done
+
+              echo "  ❌ $name — FAILED after $retries attempts"
+              return 1
+            }
+
+            FAILED=0
+            check_health "Backend API"  "http://localhost:8000/api/health" || FAILED=1
+            check_health "Frontend"     "http://localhost:80"             || FAILED=1
+            check_health "n8n"          "http://localhost:5678/healthz"   || FAILED=1
+
+            echo ""
+            if [ $FAILED -eq 1 ]; then
+              echo "╔══════════════════════════════════════════════════════════╗"
+              echo "║  ⚠️  DEPLOYMENT COMPLETED WITH HEALTH CHECK FAILURES    ║"
+              echo "╚══════════════════════════════════════════════════════════╝"
+              echo ""
+              echo "📋 Container status:"
+              docker compose ps
+              echo ""
+              echo "📋 Recent logs:"
+              docker compose logs --tail=20
+              exit 1
+            fi
+
+            echo "╔══════════════════════════════════════════════════════════╗"
+            echo "║            ✅ Deployment Successful!                    ║"
+            echo "╠══════════════════════════════════════════════════════════╣"
+            echo "║  Frontend:  http://${{ secrets.EC2_HOST }}              ║"
+            echo "║  Backend:   http://${{ secrets.EC2_HOST }}:8000         ║"
+            echo "║  n8n:       http://${{ secrets.EC2_HOST }}:5678         ║"
+            echo "╚══════════════════════════════════════════════════════════╝"
+
+            # ── Clean up old Docker images ───────────────────────────
+            echo ""
+            echo "🧹 Cleaning up old Docker images..."
+            docker image prune -f
+            echo "✅ Cleanup complete"
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Detail | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Triggered by** | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target** | \`${{ secrets.EC2_HOST }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY

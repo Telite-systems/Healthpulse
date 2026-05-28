@@ -1,0 +1,164 @@
+# ============================================================
+# HealthPulse — Continuous Integration
+# ============================================================
+# Runs on every push and pull request.
+# Jobs: lint-backend, lint-frontend, build-frontend,
+#        test-backend, docker-build
+# ============================================================
+
+name: CI
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same branch/PR
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Python Lint ──────────────────────────────────────────────
+  lint-backend:
+    name: 🐍 Lint Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: healthcare-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install flake8
+        run: pip install flake8
+
+      - name: Run flake8
+        run: |
+          flake8 app/ \
+            --max-line-length=120 \
+            --extend-ignore=E501,W503 \
+            --exclude=__pycache__,venv,.venv,migrations \
+            --count --show-source --statistics
+
+  # ── Frontend Lint ────────────────────────────────────────────
+  lint-frontend:
+    name: ⚡ Lint Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: healthcare-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: healthcare-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+  # ── Frontend Build ──────────────────────────────────────────
+  build-frontend:
+    name: 🏗️ Build Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: healthcare-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: healthcare-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (Vite + TypeScript)
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ Build failed — dist/ directory not found"
+            exit 1
+          fi
+          echo "✅ Build successful — dist/ contains $(find dist -type f | wc -l) files"
+
+  # ── Backend Tests ───────────────────────────────────────────
+  test-backend:
+    name: 🧪 Test Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: healthcare-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: healthcare-backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Run tests
+        env:
+          # Provide dummy env vars so app config doesn't crash on import
+          MONGODB_URL: "mongodb://localhost:27017"
+          MONGODB_DB_NAME: "healthpulse_test"
+          JWT_SECRET_KEY: "ci-test-secret-key-not-for-production"
+          JWT_ALGORITHM: "HS256"
+          JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+          CORS_ORIGINS: "http://localhost"
+          APP_NAME: "HealthPulse CI"
+          APP_VERSION: "0.0.0-ci"
+          DEBUG: "True"
+          HOST: "0.0.0.0"
+          PORT: "8000"
+          LOG_LEVEL: "DEBUG"
+        run: |
+          if [ -d "tests" ] && [ "$(find tests -name 'test_*.py' | head -1)" ]; then
+            pytest tests/ -v --tb=short
+          else
+            echo "⚠️  No tests found in tests/ — skipping"
+            echo "💡 Add test files to healthcare-backend/tests/ to enable CI testing"
+          fi
+
+  # ── Docker Build Smoke Test ────────────────────────────────
+  docker-build:
+    name: 🐳 Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t healthpulse-backend:ci ./healthcare-backend
+
+      - name: Build frontend image
+        run: docker build -t healthpulse-frontend:ci ./healthcare-app
+
+      - name: Verify images
+        run: |
+          echo "✅ Built images:"
+          docker images --filter "reference=healthpulse-*" --format "  {{.Repository}}:{{.Tag}} — {{.Size}}"
