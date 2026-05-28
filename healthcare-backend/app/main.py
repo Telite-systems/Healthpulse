@@ -104,7 +104,6 @@ for collection_name, tag in collection_configs:
     app.include_router(router)
 
 
-
 # ---- Auth Info Routes ----
 @app.get("/auth/login")
 async def auth_login_info():
