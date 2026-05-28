@@ -2,8 +2,8 @@
 # Patient Visit Model
 # ============================================
 
-from pydantic import BaseModel, Field
-from typing import Literal, Optional, Dict
+from pydantic import BaseModel
+from typing import Literal, Optional
 from app.models.base import MongoBaseModel
 
 

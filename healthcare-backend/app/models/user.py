@@ -3,7 +3,7 @@
 # ============================================
 
 from pydantic import BaseModel, Field
-from typing import Literal, Optional
+from typing import Literal
 from app.models.base import MongoBaseModel
 
 

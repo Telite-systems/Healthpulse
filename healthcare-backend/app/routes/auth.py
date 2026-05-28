@@ -8,7 +8,8 @@
 
 from fastapi import APIRouter, HTTPException, status, Depends
 from datetime import datetime, timedelta
-from app.models.user import UserLogin, TokenResponse
+from pydantic import BaseModel, Field
+from app.models.user import UserLogin
 from app.services.auth import (
     verify_password, create_access_token, get_current_user,
     hash_password
@@ -104,7 +105,7 @@ async def login_info():
 
 
 # ─── Patient Self-Registration ───────────────────────────────────────────────
-from pydantic import BaseModel, EmailStr, Field
+
 
 class PatientRegister(BaseModel):
     name: str = Field(..., min_length=2)
@@ -112,6 +113,7 @@ class PatientRegister(BaseModel):
     phone: str
     username: str = Field(..., min_length=3)
     password: str = Field(..., min_length=6)
+
 
 @router.post("/register", response_model=dict)
 async def register_patient(payload: PatientRegister):
