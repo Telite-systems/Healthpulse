@@ -74,10 +74,13 @@ function RoleRoute({ roles, children }: { roles: string[]; children: React.JSX.E
   return children;
 }
 
+import ZegoCallRoom from './components/ZegoCallRoom';
+
 function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeConsult, setActiveConsult] = useState<CallState | null>(null);
+  const { user } = useAuth();
 
   const handleCallAccepted = (call: CallState) => {
     setActiveConsult(call);
@@ -86,6 +89,31 @@ function DashboardLayout() {
   const handleConsultClose = () => {
     setActiveConsult(null);
   };
+
+  // Stable userID — same logic as Telemedicine so IDs match
+  const stableUserID = user?.id || (() => {
+    const key = 'hp_uid';
+    const saved = localStorage.getItem(key);
+    if (saved) return saved;
+    const generated = `guest_${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(key, generated);
+    return generated;
+  })();
+
+  // When the doctor/receiver accepts an incoming call, open ZegoCallRoom
+  // using the zegoRoomID that the caller embedded in the signal
+  if (activeConsult?.zegoRoomID) {
+    return (
+      <ZegoCallRoom
+        roomID={activeConsult.zegoRoomID}
+        userID={stableUserID}
+        userName={user?.name || 'Doctor'}
+        callType={activeConsult.callType === 'video' ? 'oneOnOneVideo' : 'oneOnOneVoice'}
+        onCallEnd={handleConsultClose}
+        onLeaveRoom={handleConsultClose}
+      />
+    );
+  }
 
   return (
     <div className="dashboard-layout">
@@ -98,7 +126,7 @@ function DashboardLayout() {
       </div>
       <ChatbotWidget />
       <IncomingCallPopup onAccept={handleCallAccepted} />
-      {activeConsult && (
+      {activeConsult && !activeConsult.zegoRoomID && (
         <DoctorPatientConsult
           patientName={activeConsult.callerName}
           callId={activeConsult.callId}
@@ -108,6 +136,7 @@ function DashboardLayout() {
     </div>
   );
 }
+
 
 function AppRoutes() {
   const { isAuthenticated } = useAuth();

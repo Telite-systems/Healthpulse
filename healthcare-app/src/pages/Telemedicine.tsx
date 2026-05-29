@@ -100,7 +100,8 @@ export default function Telemedicine() {
     const call = callService.initiateCall(
       { id: user.id || '', name: user.name || 'Patient', role: user.role || 'Patient', avatar: user.avatar || '\u{1F464}' },
       { id: doctor.id || '', name: doctor.name || 'Doctor' },
-      type
+      type,
+      roomId   // ← send roomID in the signal so receiver knows which Zego room to join
     );
     setActiveCallState(call);
 

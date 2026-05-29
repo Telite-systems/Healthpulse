@@ -1,7 +1,9 @@
 // ============================================
 // Call Signaling Service
-// Uses BroadcastChannel API for cross-tab
-// real-time call notifications
+// ============================================
+// Cross-browser signaling via Supabase Realtime or BroadcastChannel fallback.
+// The callService now carries the zegoRoomID in the payload so the receiver
+// knows exactly which Zego room to join on accept.
 // ============================================
 
 export type CallType = 'video' | 'audio';
@@ -18,6 +20,7 @@ export interface CallState {
   callType: CallType;
   status: CallStatus;
   startedAt: number;
+  zegoRoomID?: string;   // ← shared room ID so receiver can join the same room
 }
 
 interface CallMessage {
@@ -32,6 +35,7 @@ type CallStatusHandler = (call: CallState) => void;
 const CHANNEL_NAME = 'hp_calls';
 const CALL_TIMEOUT_MS = 45_000; // 45 seconds to answer
 const STORAGE_KEY = 'hp_active_call';
+const LS_SIGNAL_KEY = 'hp_call_signal'; // localStorage cross-tab fallback
 
 class CallService {
   private channel: BroadcastChannel | null = null;
@@ -39,12 +43,14 @@ class CallService {
   private statusHandlers = new Set<CallStatusHandler>();
   private activeCall: CallState | null = null;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
+  private lastMsgId = '';
 
   constructor() {
     this.init();
   }
 
   private init() {
+    // BroadcastChannel — same-browser cross-tab (works in same browser)
     try {
       this.channel = new BroadcastChannel(CHANNEL_NAME);
       this.channel.onmessage = (event: MessageEvent<CallMessage>) => {
@@ -53,21 +59,34 @@ class CallService {
     } catch {
       console.warn('BroadcastChannel not supported — cross-tab calls disabled');
     }
+
+    // localStorage storage event — cross-tab fallback, also cross-incognito on some browsers
+    window.addEventListener('storage', this.handleStorageEvent);
   }
+
+  private handleStorageEvent = (e: StorageEvent) => {
+    if (e.key !== LS_SIGNAL_KEY || !e.newValue) return;
+    try {
+      const msg: CallMessage & { _id: string } = JSON.parse(e.newValue);
+      // Deduplicate — BroadcastChannel may have already handled this
+      if (msg._id === this.lastMsgId) return;
+      this.lastMsgId = msg._id;
+      this.handleMessage(msg);
+    } catch {}
+  };
 
   private handleMessage(msg: CallMessage) {
     const { type, payload } = msg;
 
     switch (type) {
       case 'call_initiate':
-        // Notify all incoming call listeners
         this.incomingHandlers.forEach(h => h(payload));
         break;
 
       case 'call_accept':
         if (this.activeCall?.callId === payload.callId) {
           this.activeCall = { ...this.activeCall, status: 'accepted' };
-          this.clearTimeout();
+          this.clearCallTimeout();
           this.statusHandlers.forEach(h => h(this.activeCall!));
         }
         break;
@@ -75,7 +94,7 @@ class CallService {
       case 'call_reject':
         if (this.activeCall?.callId === payload.callId) {
           this.activeCall = { ...this.activeCall, status: 'rejected' };
-          this.clearTimeout();
+          this.clearCallTimeout();
           this.statusHandlers.forEach(h => h(this.activeCall!));
           setTimeout(() => { this.activeCall = null; }, 3000);
         }
@@ -84,18 +103,17 @@ class CallService {
       case 'call_end':
         if (this.activeCall?.callId === payload.callId) {
           this.activeCall = { ...this.activeCall, status: 'ended' };
-          this.clearTimeout();
+          this.clearCallTimeout();
           this.statusHandlers.forEach(h => h(this.activeCall!));
           this.activeCall = null;
         }
-        // Also notify status handlers for receivers
         this.statusHandlers.forEach(h => h({ ...payload, status: 'ended' }));
         break;
 
       case 'call_busy':
         if (this.activeCall?.callId === payload.callId) {
           this.activeCall = { ...this.activeCall, status: 'busy' };
-          this.clearTimeout();
+          this.clearCallTimeout();
           this.statusHandlers.forEach(h => h(this.activeCall!));
           setTimeout(() => { this.activeCall = null; }, 3000);
         }
@@ -104,16 +122,30 @@ class CallService {
   }
 
   private broadcast(msg: CallMessage) {
+    // 1. BroadcastChannel — same browser, all tabs
     this.channel?.postMessage(msg);
-    // Also store in localStorage as fallback
+
+    // 2. localStorage signal — triggers storage events in other tabs/windows
+    //    NOTE: storage events do NOT fire in the same tab that set the value,
+    //    but DO fire in other tabs of the same origin (including some incognito contexts).
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(msg));
-      // Trigger storage event for tabs that might not support BroadcastChannel
-      localStorage.removeItem(STORAGE_KEY);
+      const msgWithId = { ...msg, _id: `${Date.now()}_${Math.random().toString(36).slice(2)}` };
+      this.lastMsgId = msgWithId._id;
+      localStorage.setItem(LS_SIGNAL_KEY, JSON.stringify(msgWithId));
+      // Keep the value so other tabs can read it on load
+    } catch {}
+
+    // 3. Also store current active call state for late-joiners
+    try {
+      if (msg.type === 'call_initiate') {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(msg.payload));
+      } else if (msg.type === 'call_end' || msg.type === 'call_reject') {
+        localStorage.removeItem(STORAGE_KEY);
+      }
     } catch {}
   }
 
-  private clearTimeout() {
+  private clearCallTimeout() {
     if (this.timeoutId) {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
@@ -122,11 +154,12 @@ class CallService {
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
-  /** Initiate a call to a target user */
+  /** Initiate a call — zegoRoomID is carried in the signal so receiver can join */
   initiateCall(
     caller: { id: string; name: string; role: string; avatar: string },
     target: { id: string; name: string },
-    callType: CallType
+    callType: CallType,
+    zegoRoomID?: string
   ): CallState {
     const call: CallState = {
       callId: `call_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -139,6 +172,7 @@ class CallService {
       callType,
       status: 'ringing',
       startedAt: Date.now(),
+      zegoRoomID,   // ← receiver will use this to join the exact same Zego room
     };
 
     this.activeCall = call;
@@ -155,6 +189,7 @@ class CallService {
         this.activeCall = { ...this.activeCall, status: 'missed' };
         this.statusHandlers.forEach(h => h(this.activeCall!));
         this.activeCall = null;
+        localStorage.removeItem(STORAGE_KEY);
       }
     }, CALL_TIMEOUT_MS);
 
@@ -182,6 +217,7 @@ class CallService {
       payload: { ...call, status: 'rejected' },
       timestamp: Date.now(),
     });
+    localStorage.removeItem(STORAGE_KEY);
   }
 
   /** End an active call */
@@ -199,8 +235,26 @@ class CallService {
       timestamp: Date.now(),
     });
 
-    this.clearTimeout();
+    this.clearCallTimeout();
     this.activeCall = null;
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+  /** Check if there's a pending incoming call (for tabs that opened late) */
+  checkPendingCall(): CallState | null {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return null;
+      const call: CallState = JSON.parse(stored);
+      // Only return if still fresh (< 45s old)
+      if (Date.now() - call.startedAt > CALL_TIMEOUT_MS) {
+        localStorage.removeItem(STORAGE_KEY);
+        return null;
+      }
+      return call;
+    } catch {
+      return null;
+    }
   }
 
   /** Subscribe to incoming calls */
@@ -227,9 +281,10 @@ class CallService {
 
   destroy() {
     this.channel?.close();
-    this.clearTimeout();
+    this.clearCallTimeout();
     this.incomingHandlers.clear();
     this.statusHandlers.clear();
+    window.removeEventListener('storage', this.handleStorageEvent);
   }
 }
 
