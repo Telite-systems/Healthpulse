@@ -266,8 +266,45 @@ export default function ZegoCallRoom({
               </h3>
               <p style={{ margin: '0 0 16px 0', fontSize: '0.88rem', color: '#cbd5e1', lineHeight: '1.5' }}>
                 Your browser blocks Camera and Microphone access on insecure connections (<strong>HTTP</strong>). 
-                To start video calling, you must use <strong>HTTPS</strong>, or allow this IP in Chrome/Edge flags:
+                To start video calling, you can switch to secure HTTPS (recommended) or allow the origin in your browser flags:
               </p>
+
+              <div style={{
+                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                borderRadius: '10px',
+                padding: '14px',
+                fontSize: '0.82rem',
+                color: '#93c5fd',
+                marginBottom: '14px',
+                borderLeft: '4px solid #3b82f6',
+                lineHeight: '1.5'
+              }}>
+                <strong style={{ color: '#fff', display: 'block', marginBottom: '4px' }}>Option 1: Switch to HTTPS (Easiest)</strong>
+                We have enabled HTTPS support on the server. Click below to reload the page securely:
+                <div style={{ marginTop: '8px' }}>
+                  <a
+                    href={currentOrigin.replace('http://', 'https://')}
+                    style={{
+                      display: 'inline-block',
+                      padding: '6px 12px',
+                      backgroundColor: '#3b82f6',
+                      color: '#fff',
+                      borderRadius: '6px',
+                      textDecoration: 'none',
+                      fontWeight: '600',
+                      fontSize: '0.78rem',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+                  >
+                    Switch to HTTPS Call
+                  </a>
+                </div>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
+                  * Note: The browser will show an "Insecure/Self-signed Certificate" warning. Click <strong>Advanced</strong> → <strong>Proceed (unsafe)</strong> to proceed to the secure session.
+                </span>
+              </div>
               
               <div style={{
                 backgroundColor: 'rgba(0, 0, 0, 0.3)',
@@ -279,7 +316,7 @@ export default function ZegoCallRoom({
                 borderLeft: '4px solid #ef4444',
                 lineHeight: '1.5'
               }}>
-                <strong style={{ color: '#fff', display: 'block', marginBottom: '8px' }}>How to enable for Chrome / Edge:</strong>
+                <strong style={{ color: '#fff', display: 'block', marginBottom: '8px' }}>Option 2: Enable Chrome / Edge flags (HTTP Dev bypass):</strong>
                 <ol style={{ margin: 0, paddingLeft: '18px' }}>
                   <li style={{ marginBottom: '6px' }}>
                     Open a new tab and go to:<br />
