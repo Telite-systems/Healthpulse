@@ -87,32 +87,26 @@ export default function Telemedicine() {
   const startCall = (doctor: any, type: CallType) => {
     if (!user) return;
     setSelectedDoctor(doctor);
-    setCallingState('calling');
     setCallElapsed(0);
 
     // Set ZEGOCLOUD call type
     setZegoCallType(type === 'video' ? 'oneOnOneVideo' : 'oneOnOneVoice');
 
-    // Generate a unique room ID for this call
+    // Generate DETERMINISTIC room ID — same for both caller and callee
+    // Both sides compute this from their user IDs, so they always land in the same room
     const roomId = generateRoomID(user.id || 'patient', doctor.id || 'doctor');
     setZegoRoomID(roomId);
 
     const call = callService.initiateCall(
-      { id: user.id || '', name: user.name || 'Patient', role: user.role || 'Patient', avatar: user.avatar || '👤' },
+      { id: user.id || '', name: user.name || 'Patient', role: user.role || 'Patient', avatar: user.avatar || '\u{1F464}' },
       { id: doctor.id || '', name: doctor.name || 'Doctor' },
       type
     );
     setActiveCallState(call);
 
-    callTimerRef.current = setInterval(() => {
-      setCallElapsed(e => e + 1);
-    }, 1000);
-
-    // Auto-connect to ZEGOCLOUD after 2s ringing animation
-    setTimeout(() => {
-      setCallingState('accepted');
-      clearInterval(callTimerRef.current);
-    }, 2000);
+    // Enter the Zego room immediately — no fake delay
+    // Both users independently join the same deterministic roomID
+    setCallingState('accepted');
   };
 
   const cancelCall = () => {
@@ -164,10 +158,22 @@ export default function Telemedicine() {
 
   // Show ZEGOCLOUD real call when accepted
   if (callingState === 'accepted' && zegoRoomID && user) {
+    // Use a stable userID — localStorage ensures incognito/new browser tabs
+    // get a consistent ID rather than a random timestamp that breaks Zego auth
+    const stableUserID = user.id ||
+      (() => {
+        const key = 'hp_uid';
+        const saved = localStorage.getItem(key);
+        if (saved) return saved;
+        const generated = `guest_${Math.random().toString(36).slice(2, 10)}`;
+        localStorage.setItem(key, generated);
+        return generated;
+      })();
+
     return (
       <ZegoCallRoom
         roomID={zegoRoomID}
-        userID={user.id || `user_${Date.now()}`}
+        userID={stableUserID}
         userName={user.name || 'Patient'}
         callType={zegoCallType}
         onCallEnd={() => {

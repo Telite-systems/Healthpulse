@@ -214,9 +214,19 @@ export default function ZegoCallRoom({
   );
 }
 
-// ── Utility: Generate a unique room ID ──────────────────────────────────────
+// ── Utility: Generate a DETERMINISTIC room ID ──────────────────────────────
+// IMPORTANT: Must be stable — both caller and callee must get the same room ID.
+// Do NOT use Date.now() or Math.random() here — it would make each side join
+// a different room and they'd never connect across different browsers.
 export function generateRoomID(userId1: string, userId2: string): string {
   const sorted = [userId1, userId2].sort();
-  const clean = (s: string) => s.replace(/[^a-zA-Z0-9_]/g, '');
-  return `hp_${clean(sorted[0])}_${clean(sorted[1])}_${Date.now()}`;
+  const clean = (s: string) => s.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20);
+  // Simple deterministic hash: sum of char codes mod 99999 for uniqueness
+  const seed = sorted.join('|');
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
+  }
+  const hashStr = Math.abs(hash).toString(36).slice(0, 8);
+  return `hp_${clean(sorted[0])}_${clean(sorted[1])}_${hashStr}`;
 }
