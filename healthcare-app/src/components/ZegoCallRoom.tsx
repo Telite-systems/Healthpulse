@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { PhoneOff, RotateCcw } from 'lucide-react';
+import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
 
 // ── ZEGOCLOUD Credentials ──────────────────────────────────────────────────
 const ZEGO_APP_ID = 982964860;
@@ -50,7 +51,6 @@ export default function ZegoCallRoom({
       if (!active || !containerRef.current) return;
 
       try {
-        const { ZegoUIKitPrebuilt } = await import('@zegocloud/zego-uikit-prebuilt');
         if (!active || !containerRef.current) return;
 
         // Generate kit token
