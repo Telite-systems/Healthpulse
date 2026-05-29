@@ -35,6 +35,42 @@ export default function ZegoCallRoom({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [retryKey, setRetryKey] = useState(0);
+  const [dismissWarning, setDismissWarning] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const isInsecure = typeof window !== 'undefined' && !window.isSecureContext;
+  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+
+  const handleCopy = useCallback(() => {
+    const text = currentOrigin;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  }, [currentOrigin]);
+
+  const fallbackCopy = (text: string) => {
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Fallback copy failed', err);
+    }
+  };
 
   // Stable callback ref so we don't re-trigger the effect
   const onCallEndRef = useRef(onCallEnd);
@@ -203,6 +239,126 @@ export default function ZegoCallRoom({
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       )}
+
+      {isInsecure && !dismissWarning && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '90%',
+          maxWidth: '520px',
+          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          borderRadius: '20px',
+          padding: '24px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+          zIndex: 100002,
+          color: '#fff',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+        }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '2.2rem', lineHeight: '1' }}>⚠️</span>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ margin: '0 0 8px 0', color: '#f87171', fontSize: '1.2rem', fontWeight: '700' }}>
+                Secure Context Required
+              </h3>
+              <p style={{ margin: '0 0 16px 0', fontSize: '0.88rem', color: '#cbd5e1', lineHeight: '1.5' }}>
+                Your browser blocks Camera and Microphone access on insecure connections (<strong>HTTP</strong>). 
+                To start video calling, you must use <strong>HTTPS</strong>, or allow this IP in Chrome/Edge flags:
+              </p>
+              
+              <div style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                borderRadius: '10px',
+                padding: '14px',
+                fontSize: '0.82rem',
+                color: '#94a3b8',
+                marginBottom: '20px',
+                borderLeft: '4px solid #ef4444',
+                lineHeight: '1.5'
+              }}>
+                <strong style={{ color: '#fff', display: 'block', marginBottom: '8px' }}>How to enable for Chrome / Edge:</strong>
+                <ol style={{ margin: 0, paddingLeft: '18px' }}>
+                  <li style={{ marginBottom: '6px' }}>
+                    Open a new tab and go to:<br />
+                    <code style={{ 
+                      backgroundColor: 'rgba(244, 63, 94, 0.15)', 
+                      padding: '2px 6px', 
+                      borderRadius: '4px', 
+                      color: '#f43f5e',
+                      fontSize: '0.78rem',
+                      wordBreak: 'break-all',
+                      marginTop: '4px',
+                      display: 'inline-block'
+                    }}>
+                      chrome://flags/#unsafely-treat-insecure-origin-as-secure
+                    </code>
+                  </li>
+                  <li style={{ marginBottom: '6px' }}>
+                    Set <strong>Insecure origins treated as secure</strong> to <strong>Enabled</strong>.
+                  </li>
+                  <li style={{ marginBottom: '6px' }}>
+                    Add this site's address to the text box:
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '6px', alignItems: 'center' }}>
+                      <code style={{ 
+                        backgroundColor: 'rgba(16, 185, 129, 0.15)', 
+                        padding: '4px 8px', 
+                        borderRadius: '4px', 
+                        color: '#34d399',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        wordBreak: 'break-all'
+                      }}>{currentOrigin}</code>
+                      <button onClick={handleCopy} style={{
+                        padding: '4px 10px', 
+                        fontSize: '0.75rem', 
+                        borderRadius: '6px', 
+                        border: 'none',
+                        cursor: 'pointer', 
+                        backgroundColor: copied ? '#10b981' : '#334155', 
+                        color: '#fff', 
+                        fontWeight: '600',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => { if (!copied) e.currentTarget.style.backgroundColor = '#475569'; }}
+                      onMouseLeave={(e) => { if (!copied) e.currentTarget.style.backgroundColor = '#334155'; }}>
+                        {copied ? '✓ Copied' : 'Copy Origin'}
+                      </button>
+                    </div>
+                  </li>
+                  <li>
+                    Click the <strong>Relaunch</strong> button in the bottom right of the flags page to restart the browser.
+                  </li>
+                </ol>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button 
+                  onClick={() => setDismissWarning(true)}
+                  style={{
+                    padding: '8px 18px', 
+                    borderRadius: '8px', 
+                    border: 'none', 
+                    cursor: 'pointer',
+                    backgroundColor: '#ef4444', 
+                    color: '#fff', 
+                    fontSize: '0.82rem',
+                    fontWeight: '600', 
+                    transition: 'opacity 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                >
+                  Dismiss / Proceed
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div
         ref={containerRef}
         style={{
