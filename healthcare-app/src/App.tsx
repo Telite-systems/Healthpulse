@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Heart } from 'lucide-react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -26,6 +26,7 @@ import ChatbotWidget from './components/ChatbotWidget';
 import IncomingCallPopup from './components/IncomingCallPopup';
 import DoctorPatientConsult from './components/DoctorPatientConsult';
 import type { CallState } from './services/callService';
+import { callService } from './services/callService';
 
 // Initialize the real-time database and WebSocket on app load
 initializeDatabase();
@@ -81,6 +82,13 @@ function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeConsult, setActiveConsult] = useState<CallState | null>(null);
   const { user } = useAuth();
+
+  // Connect to call signaling WebSocket as soon as user is authenticated
+  useEffect(() => {
+    if (user?.id) {
+      callService.connect(user.id, user.name || 'User');
+    }
+  }, [user?.id]);
 
   const handleCallAccepted = (call: CallState) => {
     setActiveConsult(call);

@@ -15,6 +15,7 @@ from app.seed import seed_database
 from app.routes.auth import router as auth_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.websocket import router as ws_router, event_generator
+from app.routes.signaling import router as signaling_router
 from app.routes.collections import create_collection_router
 
 # ---- Logging Setup ----
@@ -85,6 +86,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(dashboard_router)
 app.include_router(ws_router)
+app.include_router(signaling_router)  # ← Call signaling (per-user WebSocket)
 
 # ---- Dynamic Collection CRUD Routes ----
 collection_configs = [
