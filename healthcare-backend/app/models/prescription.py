@@ -2,7 +2,7 @@
 # Prescription Model
 # ============================================
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Literal, Optional
 from app.models.base import MongoBaseModel
 
