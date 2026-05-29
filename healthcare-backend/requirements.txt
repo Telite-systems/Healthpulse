@@ -32,6 +32,8 @@ websockets==14.2
 # Date/Time utilities
 python-dateutil==2.9.0
 
-# ML & Embeddings
-sentence-transformers==3.3.1
-torch==2.6.0
+# ML & Embeddings — NOTE: torch & sentence-transformers are intentionally excluded
+# from the Docker image. They are only used by standalone scripts:
+#   - embed_diseases.py  (one-time data loading)
+#   - embedding_server.py (optional embedding microservice)
+# Run those scripts separately with: pip install sentence-transformers torch
