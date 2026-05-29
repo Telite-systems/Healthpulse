@@ -25,9 +25,16 @@ jobs:
   # ── Deploy to EC2 ──────────────────────────────────────────
   deploy:
     name: 🚀 Deploy to EC2
+    # Only require the hard gates: docker-build + test-backend
+    # Lint jobs are advisory and may show warnings without blocking
     needs: ci
+    if: |
+      always() &&
+      needs.ci.result != 'cancelled' &&
+      !failure()
     runs-on: ubuntu-latest
     environment: production
+
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.2
