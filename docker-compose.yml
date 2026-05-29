@@ -42,14 +42,16 @@ services:
     ports:
       - "5678:5678"
     environment:
-      - N8N_HOST=localhost
+      - N8N_HOST=${EC2_PUBLIC_IP:-localhost}
       - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - N8N_EDITOR_BASE_URL=http://localhost:5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-http://localhost:5678}
       - NODE_ENV=production
-      - WEBHOOK_URL=http://localhost:5678/
+      - WEBHOOK_URL=${WEBHOOK_TUNNEL_URL:-http://localhost:5678/}
       - N8N_RUNNERS_DISABLED=true
       - SUPABASE_SECRET_KEY=${SUPABASE_SECRET_KEY}
+      # Claude / Anthropic API key for AI workflows
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       # Skip owner setup for local dev — allows API/CLI access without auth
       - N8N_BASIC_AUTH_ACTIVE=false
       - N8N_PERSONALIZATION_ENABLED=false
