@@ -167,12 +167,31 @@ export default function DoctorDashboard() {
   ];
 
   const handleAppointmentAction = async (id: string, action: 'accept' | 'reject') => {
+    const apt = appointments.find(a => a.id === id);
+    if (!apt) return;
+
     const newStatus = action === 'accept' ? 'Confirmed' : 'Cancelled';
     setAppointments(prev => prev.map(a =>
       a.id === id ? { ...a, status: newStatus } : a
     ));
     try {
       await api.update('appointments', id, { status: newStatus } as any);
+
+      // Create database notification for patient
+      const notifData = {
+        id: `N${Date.now()}`,
+        title: action === 'accept' ? '📅 Appointment Confirmed!' : '❌ Appointment Cancelled',
+        message: action === 'accept' 
+          ? `Your appointment with ${user?.name || 'Doctor'} has been confirmed.`
+          : `Your appointment with ${user?.name || 'Doctor'} has been cancelled.`,
+        type: action === 'accept' ? 'success' : 'error',
+        time: 'Just now',
+        read: false,
+        patientName: apt.patient,
+        createdAt: new Date().toISOString()
+      };
+      await api.create('notifications', notifData as any);
+
       toast.success('Appointment Updated', `Appointment ${newStatus.toLowerCase()}`);
     } catch {
       toast.info('Updated Locally', 'Change saved locally (backend sync pending)');
@@ -218,6 +237,20 @@ export default function DoctorDashboard() {
         toast.success('Prescription Updated', `Prescription for ${prescriptionForm.patient} updated`);
       } else {
         await api.create('prescriptions', rxData as any);
+
+        // Create database notification for patient
+        const notifData = {
+          id: `N${Date.now()}`,
+          title: '💊 New Prescription Issued',
+          message: `${user?.name || 'Doctor'} has issued a new prescription for you: ${prescriptionForm.medicines}.`,
+          type: 'success',
+          time: 'Just now',
+          read: false,
+          patientName: prescriptionForm.patient,
+          createdAt: new Date().toISOString()
+        };
+        await api.create('notifications', notifData as any);
+
         toast.success('Prescription Saved', `Prescription for ${prescriptionForm.patient} created`);
       }
     } catch {

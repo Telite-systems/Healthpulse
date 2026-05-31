@@ -19,7 +19,7 @@ const FB_PRESCRIPTIONS: any[] = [];
 const FB_RECORDS: any[] = [];
 
 const FB_NOTIFICATIONS = [
-  { id: 1, icon: '📅', title: 'Welcome!', desc: 'Book your first appointment with our specialists.', time: 'Just now', read: false },
+  { id: 1, icon: '📅', title: 'Welcome!', desc: 'Book your first appointment with our specialists.', time: 'Just now', read: false, patientName: '' },
 ];
 
 // ── All available departments for filtering ────────────────────────────────────
@@ -162,8 +162,9 @@ export default function PatientDashboard() {
         }
         if (notifsRes.status === 'fulfilled' && notifsRes.value?.data?.data?.length) {
           setMyNotifications(notifsRes.value.data.data.map((n: any) => ({
-            id: n.id || n._id, icon: n.type === 'warning' ? '⚠️' : n.type === 'success' ? '✅' : '📢',
+            id: n.id || n._id, icon: n.type === 'error' || n.type === 'warning' ? '⚠️' : n.type === 'success' ? '✅' : '📢',
             title: n.title, desc: n.message, time: n.time || 'recently', read: n.read ?? false,
+            patientName: n.patientName || n.patient || '',
           })));
         }
       } catch {
@@ -398,25 +399,23 @@ export default function PatientDashboard() {
     }, 500);
   };
 
-  // Get unique doctor names patient has booked an appointment with (robust match)
-  const bookedDoctorNames = Array.from(new Set(myAppointments.map(a => a.doctor))).filter(Boolean);
-
-  // Filter prescriptions (only own prescriptions from doctors with booked appointments)
+  // Filter prescriptions (only own prescriptions)
   const filteredPrescriptions = myPrescriptions.filter(rx => {
     if (!user?.name) return false;
     
-    // 1. Must belong to this patient
+    // Must belong to this patient
     const rxPatient = (rx.patientName || '').toLowerCase().trim();
     const currPatient = user.name.toLowerCase().trim();
-    const isMyRx = rxPatient === currPatient || rxPatient.includes(currPatient) || currPatient.includes(rxPatient);
-    if (!isMyRx) return false;
+    return rxPatient === currPatient || rxPatient.includes(currPatient) || currPatient.includes(rxPatient);
+  });
 
-    // 2. Must be from a doctor with a booked appointment
-    return bookedDoctorNames.some(docName => {
-      const a = docName.toLowerCase().trim();
-      const b = (rx.doctor || '').toLowerCase().trim();
-      return a === b || a.includes(b) || b.includes(a);
-    });
+  // Filter notifications (only own notifications or global alerts)
+  const filteredNotifications = myNotifications.filter(n => {
+    if (!n.patientName) return true; // global system alerts
+    if (!user?.name) return false;
+    const nPatient = n.patientName.toLowerCase().trim();
+    const currPatient = user.name.toLowerCase().trim();
+    return nPatient === currPatient || nPatient.includes(currPatient) || currPatient.includes(nPatient);
   });
 
   // ── Get next appointment for overview ──────────────────────────────────────
@@ -463,7 +462,25 @@ export default function PatientDashboard() {
             color: activeTab === tab.key ? 'white' : 'var(--text-secondary)',
             fontWeight: 500, fontSize: '0.86rem', transition: 'all 0.2s',
           }}>
-            <tab.icon size={15} />{tab.label}
+            <tab.icon size={15} />
+            {tab.label}
+            {tab.key === 'notifications' && filteredNotifications.filter(n => !n.read).length > 0 && (
+              <span style={{
+                background: '#ef4444',
+                color: 'white',
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                borderRadius: '50%',
+                width: 16,
+                height: 16,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: 4
+              }}>
+                {filteredNotifications.filter(n => !n.read).length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -881,10 +898,10 @@ export default function PatientDashboard() {
           <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ margin: 0, fontWeight: 700 }}>🔔 Notifications</h3>
             <span style={{ padding: '3px 10px', borderRadius: 20, background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>
-              {myNotifications.filter(n => !n.read).length} Unread
+              {filteredNotifications.filter(n => !n.read).length} Unread
             </span>
           </div>
-          {myNotifications.map(n => (
+          {filteredNotifications.map(n => (
             <div key={n.id} style={{
               padding: '18px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: 16, alignItems: 'flex-start',
               background: n.read ? 'transparent' : 'rgba(8,145,178,0.03)',
