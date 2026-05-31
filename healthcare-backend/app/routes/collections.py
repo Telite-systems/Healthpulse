@@ -38,11 +38,12 @@ def create_collection_router(
     @router.get("")
     async def get_all(
         page: int = Query(1, ge=1),
-        pageSize: int = Query(50, ge=1, le=200),
+        pageSize: int = Query(50, ge=1, le=1000),
         current_user: Optional[dict] = Depends(get_optional_user),
     ):
         """Get paginated list of all items."""
-        result = await service.get_all(page=page, page_size=pageSize)
+        # Sort descending by default to get the latest records first
+        result = await service.get_all(page=page, page_size=pageSize, sort_field="_id", sort_order=-1)
         return make_api_response(result)
 
     @router.get("/search")

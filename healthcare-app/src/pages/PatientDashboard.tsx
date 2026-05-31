@@ -135,16 +135,17 @@ export default function PatientDashboard() {
     const fetchData = async () => {
       try {
         const [aptsRes, rxRes, visitsRes, notifsRes] = await Promise.allSettled([
-          api.getAll<any>('appointments', 1, 20),
-          api.getAll<any>('prescriptions', 1, 20),
-          api.getAll<any>('visits', 1, 20),
-          api.getAll<any>('notifications', 1, 20),
+          api.getAll<any>('appointments', 1, 500),
+          api.getAll<any>('prescriptions', 1, 500),
+          api.getAll<any>('visits', 1, 500),
+          api.getAll<any>('notifications', 1, 500),
         ]);
 
         if (aptsRes.status === 'fulfilled' && aptsRes.value?.data?.data?.length) {
           setMyAppointments(aptsRes.value.data.data.map((a: any) => ({
             id: a.id || a._id, doctor: a.doctorName, specialization: a.department || '',
             date: a.date, time: a.time, status: a.status, type: a.type || 'Consultation',
+            patientName: a.patientName || a.patient || '',
           })));
         }
         if (rxRes.status === 'fulfilled' && rxRes.value?.data?.data?.length) {
@@ -418,8 +419,16 @@ export default function PatientDashboard() {
     return nPatient === currPatient || nPatient.includes(currPatient) || currPatient.includes(nPatient);
   });
 
+  // Filter appointments (only own appointments)
+  const filteredAppointments = myAppointments.filter(apt => {
+    if (!user?.name) return false;
+    const aptPatient = (apt.patientName || '').toLowerCase().trim();
+    const currPatient = user.name.toLowerCase().trim();
+    return aptPatient === currPatient || aptPatient.includes(currPatient) || currPatient.includes(aptPatient);
+  });
+
   // ── Get next appointment for overview ──────────────────────────────────────
-  const nextApt = myAppointments.find(a => a.status !== 'Completed');
+  const nextApt = filteredAppointments.find(a => a.status !== 'Completed');
 
   return (
     <div>
@@ -516,13 +525,13 @@ export default function PatientDashboard() {
                 <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>Upcoming Appointments</h3>
                 <button style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }} onClick={() => setActiveTab('book')}>+ Book New</button>
               </div>
-              {myAppointments.filter(a => a.status !== 'Completed').length === 0 ? (
+              {filteredAppointments.filter(a => a.status !== 'Completed').length === 0 ? (
                 <div style={{ padding: '32px 22px', textAlign: 'center' }}>
                   <Calendar size={36} color="var(--text-muted)" style={{ marginBottom: 12, opacity: 0.4 }} />
                   <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.87rem' }}>No upcoming appointments</p>
                   <button className="btn btn-primary" style={{ marginTop: 12, fontSize: '0.82rem' }} onClick={() => setActiveTab('book')}>Book Your First Appointment</button>
                 </div>
-              ) : myAppointments.filter(a => a.status !== 'Completed').map(apt => {
+              ) : filteredAppointments.filter(a => a.status !== 'Completed').map(apt => {
                 const sc = statusColor(apt.status);
                 return (
                   <div key={apt.id} style={{ padding: '14px 22px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 14 }}>

@@ -109,9 +109,9 @@ export default function DoctorDashboard() {
     const fetchData = async () => {
       try {
         const [patientsRes, appointmentsRes, prescriptionsRes] = await Promise.allSettled([
-          api.getAll<any>('patients', 1, 50),
-          api.getAll<any>('appointments', 1, 100),
-          api.getAll<any>('prescriptions', 1, 100),
+          api.getAll<any>('patients', 1, 500),
+          api.getAll<any>('appointments', 1, 500),
+          api.getAll<any>('prescriptions', 1, 500),
         ]);
 
         if (patientsRes.status === 'fulfilled' && patientsRes.value?.data?.data?.length) {
