@@ -77,6 +77,14 @@ export default function DoctorDashboard() {
   const doctorName = user?.name || '';
   const doctorId   = user?.id   || '';
 
+  // Get unique patients who booked an appointment with this doctor (robust match)
+  const uniquePatients = Array.from(new Set([
+    ...appointments
+      .filter(a => ['Scheduled', 'Confirmed', 'Completed', 'In Progress', 'Pending'].includes(a.status))
+      .map(a => a.patient),
+    ...(prescriptionForm.patient ? [prescriptionForm.patient] : [])
+  ])).filter(Boolean);
+
   // Smart doctor match: handles name mismatches between backend & mock
   // e.g. backend stores "Meena Iyer" but mock has "Dr. Meena Iyer"
   const matchesDoctor = (fieldName: string, fieldId?: string): boolean => {
@@ -618,18 +626,46 @@ export default function DoctorDashboard() {
             </div>
             {showPrescForm && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                {[
-                  { label: 'Patient Name', key: 'patient', placeholder: 'Enter patient name' },
+                 {[
+                  { label: 'Patient Name', key: 'patient', placeholder: 'Select patient' },
                   { label: 'Medicines', key: 'medicines', placeholder: 'e.g. Paracetamol 500mg' },
                   { label: 'Dosage', key: 'dosage', placeholder: 'e.g. 1 tablet twice daily' },
                   { label: 'Duration', key: 'duration', placeholder: 'e.g. 7 days' },
                 ].map(field => (
                   <div key={field.key}>
                     <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 6 }}>{field.label}</label>
-                    <input className="search-input" style={{ width: '100%' }} value={(prescriptionForm as any)[field.key]}
-                      onChange={e => setPrescriptionForm(f => ({ ...f, [field.key]: e.target.value }))}
-                      placeholder={field.placeholder}
-                    />
+                    {field.key === 'patient' ? (
+                      <select
+                        className="search-input"
+                        style={{
+                          width: '100%',
+                          height: '42px',
+                          padding: '0 12px',
+                          borderRadius: '12px',
+                          border: '1.5px solid var(--border-color)',
+                          background: 'var(--bg-input)',
+                          color: 'var(--text-primary)',
+                          outline: 'none',
+                          cursor: 'pointer'
+                        }}
+                        value={prescriptionForm.patient}
+                        onChange={e => setPrescriptionForm(f => ({ ...f, patient: e.target.value }))}
+                      >
+                        <option value="">-- Select Patient --</option>
+                        {uniquePatients.length === 0 ? (
+                          <option value="" disabled>No patients with appointments booked</option>
+                        ) : (
+                          uniquePatients.map(name => (
+                            <option key={name} value={name}>{name}</option>
+                          ))
+                        )}
+                      </select>
+                    ) : (
+                      <input className="search-input" style={{ width: '100%' }} value={(prescriptionForm as any)[field.key]}
+                        onChange={e => setPrescriptionForm(f => ({ ...f, [field.key]: e.target.value }))}
+                        placeholder={field.placeholder}
+                      />
+                    )}
                   </div>
                 ))}
                 <div style={{ gridColumn: '1 / -1' }}>

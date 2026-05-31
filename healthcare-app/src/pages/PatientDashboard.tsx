@@ -8,7 +8,7 @@ import {
   Calendar, FileText, Bell, Download, CheckCircle,
   Pill, Video, Phone, Activity, Heart, ChevronRight,
   Star, MessageSquare, AlertCircle, Thermometer, Loader2,
-  Filter, Search, Stethoscope
+  Filter, Search, Stethoscope, Trash2
 } from 'lucide-react';
 
 // Fallback data
@@ -151,6 +151,7 @@ export default function PatientDashboard() {
           setMyPrescriptions(rxRes.value.data.data.map((rx: any) => ({
             id: rx.id || rx._id, doctor: rx.doctorName, date: rx.date,
             medicines: rx.medications || rx.medicines, status: rx.status, duration: rx.duration || '—',
+            patientName: rx.patientName || rx.patient, instructions: rx.instructions || '',
           })));
         }
         if (visitsRes.status === 'fulfilled' && visitsRes.value?.data?.data?.length) {
@@ -219,6 +220,205 @@ export default function PatientDashboard() {
     setTimeout(() => { setBookingSuccess(false); setBookingStep(1); setSelectedDoctor(null); setSelectedTime(''); setSelectedDepartment('All Departments'); setDoctorSearch(''); setActiveTab('overview'); }, 2500);
   };
 
+  const handleDeletePrescription = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this prescription?')) return;
+    try {
+      await api.delete('prescriptions', id);
+      toast.success('Prescription Deleted', 'The prescription has been removed.');
+    } catch {
+      toast.info('Deleted Locally', 'Prescription removed from view.');
+    }
+    setMyPrescriptions(prev => prev.filter(rx => rx.id !== id));
+  };
+
+  const handleDownloadPrescription = (rx: any) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (!doc) return;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Prescription_${rx.id}</title>
+        <style>
+          body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            color: #1e293b;
+            padding: 40px;
+            margin: 0;
+            background-color: #fff;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #10b981;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .hospital-name {
+            font-size: 24px;
+            font-weight: 800;
+            color: #059669;
+            letter-spacing: -0.5px;
+          }
+          .hospital-sub {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 2px;
+          }
+          .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 40px;
+            font-size: 14px;
+          }
+          .meta-label {
+            color: #64748b;
+            font-weight: 500;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+          }
+          .meta-value {
+            color: #0f172a;
+            font-weight: 700;
+          }
+          .rx-symbol {
+            font-size: 36px;
+            font-weight: 800;
+            color: #10b981;
+            margin: 20px 0;
+            font-family: Georgia, serif;
+          }
+          .medications-box {
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            background-color: #f8fafc;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            color: #334155;
+            white-space: pre-line;
+          }
+          .instructions-box {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #475569;
+          }
+          .instructions-title {
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 6px;
+          }
+          .footer {
+            margin-top: 80px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+            text-align: center;
+            font-size: 11px;
+            color: #94a3b8;
+          }
+          @media print {
+            body { padding: 20px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="hospital-name">HealthPulse Medical Center</div>
+            <div class="hospital-sub">24/7 Digital Health Support & Telemedicine</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-weight: 700; font-size: 14px; color: #0f172a;">PRESCRIPTION RECORD</div>
+            <div style="font-size: 12px; color: #64748b;">ID: ${rx.id}</div>
+          </div>
+        </div>
+
+        <div class="meta-grid">
+          <div>
+            <div class="meta-label">Patient Name</div>
+            <div class="meta-value">${user?.name || 'Patient'}</div>
+            <div style="margin-top: 15px;" class="meta-label">Date</div>
+            <div class="meta-value">${rx.date}</div>
+          </div>
+          <div>
+            <div class="meta-label">Prescribing Doctor</div>
+            <div class="meta-value">${rx.doctor}</div>
+            <div style="margin-top: 15px;" class="meta-label">Duration</div>
+            <div class="meta-value">${rx.duration || 'As prescribed'}</div>
+          </div>
+        </div>
+
+        <div class="rx-symbol">Rₓ</div>
+
+        <div class="medications-box">
+          <div class="meta-label" style="margin-bottom: 8px;">Prescribed Medications</div>
+          <strong>${rx.medicines}</strong>
+        </div>
+
+        ${rx.instructions ? `
+          <div class="instructions-box">
+            <div class="instructions-title">Special Instructions & Dosage:</div>
+            <div>${rx.instructions}</div>
+          </div>
+        ` : ''}
+
+        <div class="footer">
+          This is an electronically generated prescription from HealthPulse.<br/>
+          HealthPulse Automation Platform &copy; 2026. All rights reserved.
+        </div>
+      </body>
+      </html>
+    `;
+
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+
+    iframe.contentWindow?.focus();
+    setTimeout(() => {
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 500);
+    }, 500);
+  };
+
+  // Get unique doctor names patient has booked an appointment with (robust match)
+  const bookedDoctorNames = Array.from(new Set(myAppointments.map(a => a.doctor))).filter(Boolean);
+
+  // Filter prescriptions (only own prescriptions from doctors with booked appointments)
+  const filteredPrescriptions = myPrescriptions.filter(rx => {
+    if (!user?.name) return false;
+    
+    // 1. Must belong to this patient
+    const rxPatient = (rx.patientName || '').toLowerCase().trim();
+    const currPatient = user.name.toLowerCase().trim();
+    const isMyRx = rxPatient === currPatient || rxPatient.includes(currPatient) || currPatient.includes(rxPatient);
+    if (!isMyRx) return false;
+
+    // 2. Must be from a doctor with a booked appointment
+    return bookedDoctorNames.some(docName => {
+      const a = docName.toLowerCase().trim();
+      const b = (rx.doctor || '').toLowerCase().trim();
+      return a === b || a.includes(b) || b.includes(a);
+    });
+  });
+
   // ── Get next appointment for overview ──────────────────────────────────────
   const nextApt = myAppointments.find(a => a.status !== 'Completed');
 
@@ -275,7 +475,7 @@ export default function PatientDashboard() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
             {[
               { label: 'Next Appointment', value: nextApt ? new Date(nextApt.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : '—', sub: nextApt?.doctor || 'Book one now', icon: Calendar, color: '#0891b2', bg: 'rgba(8,145,178,0.1)' },
-              { label: 'Active Medicines', value: String(myPrescriptions.filter(r => r.status === 'Active').length || '0'), sub: `${myPrescriptions.length} prescriptions`, icon: Pill, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+              { label: 'Active Medicines', value: String(filteredPrescriptions.filter(r => r.status === 'Active').length || '0'), sub: `${filteredPrescriptions.length} prescriptions`, icon: Pill, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
               { label: 'Total Visits', value: String(myRecords.length || '0'), sub: 'Since registration', icon: Activity, color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
               { label: 'Health Score', value: '85/100', sub: 'Good condition', icon: Heart, color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
             ].map((s, i) => (
@@ -610,13 +810,13 @@ export default function PatientDashboard() {
       {/* ── PRESCRIPTIONS ── */}
       {activeTab === 'prescriptions' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {myPrescriptions.length === 0 ? (
+          {filteredPrescriptions.length === 0 ? (
             <div className="glass-card" style={{ padding: '40px 24px', textAlign: 'center' }}>
               <Pill size={40} color="var(--text-muted)" style={{ marginBottom: 12, opacity: 0.3 }} />
               <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>No prescriptions yet</p>
-              <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: '0.78rem' }}>Your prescriptions will appear here after doctor visits.</p>
+              <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: '0.78rem' }}>Your prescriptions will appear here after booking appointments with doctors and consulting with them.</p>
             </div>
-          ) : myPrescriptions.map(rx => {
+          ) : filteredPrescriptions.map(rx => {
             const sc = statusColor(rx.status);
             return (
               <div key={rx.id} className="glass-card" style={{ padding: 22 }}>
@@ -634,12 +834,41 @@ export default function PatientDashboard() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 600, background: sc.bg, color: sc.color }}>{rx.status}</span>
-                    <button className="btn btn-secondary btn-sm"><Download size={13} /> Download</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleDownloadPrescription(rx)}>
+                      <Download size={13} /> Download
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        color: '#ef4444',
+                        fontSize: '0.76rem',
+                        fontWeight: '600',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'opacity 0.2s'
+                      }}
+                      onClick={() => handleDeletePrescription(rx.id)}
+                      onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
+                      onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                    >
+                      <Trash2 size={13} /> Delete
+                    </button>
                   </div>
                 </div>
                 <div style={{ padding: '12px 16px', background: 'var(--bg-input)', borderRadius: 10, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                   💊 {rx.medicines}
                 </div>
+                {rx.instructions && (
+                  <div style={{ marginTop: 10, padding: '10px 16px', background: 'rgba(8,145,178,0.04)', borderLeft: '3.5px solid #0891b2', borderRadius: '0 8px 8px 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    <strong>Instructions:</strong> {rx.instructions}
+                  </div>
+                )}
               </div>
             );
           })}

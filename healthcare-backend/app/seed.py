@@ -22,9 +22,21 @@ async def seed_database():
             {"_id": "U001", "username": "admin",  "hashed_password": hash_password("admin123"),  "name": "Dr. Admin Singh",     "role": "Admin",  "avatar": "🛡️",  "department": "Administration"},
             {"_id": "U002", "username": "doctor", "hashed_password": hash_password("doctor123"), "name": "Dr. Rajesh Kumar",    "role": "Doctor", "avatar": "👨‍⚕️", "department": "Cardiology",  "specialization": "Cardiologist"},
             {"_id": "U003", "username": "staff",  "hashed_password": hash_password("staff123"),  "name": "Priya Receptionist",  "role": "Staff",  "avatar": "👩‍💼", "department": "Reception"},
+            # Seed all additional doctor credentials to allow logging in via backend API
+            {"_id": "U004", "username": "priya",  "hashed_password": hash_password("doctor123"), "name": "Dr. Priya Sharma",    "role": "Doctor", "avatar": "👩‍⚕️", "department": "Endocrinology", "specialization": "Endocrinology"},
+            {"_id": "U005", "username": "amit",   "hashed_password": hash_password("doctor123"), "name": "Dr. Amit Singh",      "role": "Doctor", "avatar": "👨‍⚕️", "department": "Orthopedics",  "specialization": "Orthopedics"},
+            {"_id": "U006", "username": "kavita", "hashed_password": hash_password("doctor123"), "name": "Dr. Kavita Negi",     "role": "Doctor", "avatar": "👩‍⚕️", "department": "Dermatology",  "specialization": "Dermatology"},
+            {"_id": "U007", "username": "sunil",  "hashed_password": hash_password("doctor123"), "name": "Dr. Sunil Verma",     "role": "Doctor", "avatar": "👨‍⚕️", "department": "Neurology",    "specialization": "Neurology"},
+            {"_id": "U008", "username": "meena",  "hashed_password": hash_password("doctor123"), "name": "Dr. Meena Agarwal",   "role": "Doctor", "avatar": "👩‍⚕️", "department": "Pediatrics",   "specialization": "Pediatrics"},
+            {"_id": "U009", "username": "rahul",  "hashed_password": hash_password("doctor123"), "name": "Dr. Rahul Gupta",     "role": "Doctor", "avatar": "👨‍⚕️", "department": "Surgery",      "specialization": "General Surgery"},
+            {"_id": "U010", "username": "anita",  "hashed_password": hash_password("doctor123"), "name": "Dr. Anita Malhotra",  "role": "Doctor", "avatar": "👩‍⚕️", "department": "Gynecology",   "specialization": "Gynecology"},
+            {"_id": "U011", "username": "vijay",  "hashed_password": hash_password("doctor123"), "name": "Dr. Vijay Rao",       "role": "Doctor", "avatar": "👨‍⚕️", "department": "Radiology",    "specialization": "Radiology"},
+            {"_id": "U012", "username": "ritu",   "hashed_password": hash_password("doctor123"), "name": "Dr. Ritu Joshi",      "role": "Doctor", "avatar": "👩‍⚕️", "department": "Ophthalmology", "specialization": "Ophthalmology"},
+            {"_id": "U013", "username": "arun",   "hashed_password": hash_password("doctor123"), "name": "Dr. Arun Mishra",     "role": "Doctor", "avatar": "👨‍⚕️", "department": "Pulmonology",  "specialization": "Pulmonology"},
+            {"_id": "U014", "username": "pooja",  "hashed_password": hash_password("doctor123"), "name": "Dr. Pooja Sinha",     "role": "Doctor", "avatar": "👩‍⚕️", "department": "Psychiatry",   "specialization": "Psychiatry"},
         ]
         await users_col.insert_many(users)
-        logger.info("  ✅ Seeded 3 users")
+        logger.info(f"  ✅ Seeded {len(users)} users")
 
     # ─── Patients (20 records) ────────────────────────────────────────────────
     patients_col = database.get_collection("patients")
