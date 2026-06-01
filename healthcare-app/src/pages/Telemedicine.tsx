@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { mockDoctors } from '../data/mockData';
+import { mockDoctors, mockUsers } from '../data/mockData';
 import callService, { type CallState, type CallType } from '../services/callService';
 import DoctorPatientConsult from '../components/DoctorPatientConsult';
 import ZegoCallRoom, { generateRoomID } from '../components/ZegoCallRoom';
@@ -97,9 +97,13 @@ export default function Telemedicine() {
     const roomId = generateRoomID(user.id || 'patient', doctor.id || 'doctor');
     setZegoRoomID(roomId);
 
+    const matchedDoctorUser = mockUsers.find((usr) => usr.role === 'Doctor' && usr.name === doctor.name);
+    const doctorSignalId = matchedDoctorUser?.id || doctor.id || '';
+    const doctorSignalName = doctor.name || 'Doctor';
+
     const call = callService.initiateCall(
       { id: user.id || '', name: user.name || 'Patient', role: user.role || 'Patient', avatar: user.avatar || '\u{1F464}' },
-      { id: doctor.id || '', name: doctor.name || 'Doctor' },
+      { id: doctorSignalId, name: doctorSignalName },
       type,
       roomId   // ← send roomID in the signal so receiver knows which Zego room to join
     );
