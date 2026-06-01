@@ -1,0 +1,15 @@
+Total count: 13
+--- LATEST 50 PRESCRIPTIONS ---
+ID: RX1776864617877, Patient: Rahul Sharma, Doctor: Dr. James Wilson, Meds: dolo650mg
+ID: RX1776691116377, Patient: Rahul Sharma, Doctor: Dr. James Wilson, Meds: dolo 650mg
+ID: RX1776689065744, Patient: Rahul Sharma, Doctor: Dr. James Wilson, Meds: dolo650mg
+ID: RX010, Patient: Ramesh Negi, Doctor: Dr. Arun Mishra, Meds: Salbutamol inhaler, Tiotropium 18mcg, Budesonide 200mcg
+ID: RX009, Patient: Rohit Malhotra, Doctor: Dr. Sunil Verma, Meds: Paracetamol 650mg, Amitriptyline 10mg
+ID: RX008, Patient: Pooja Agarwal, Doctor: Dr. Anita Malhotra, Meds: Ferrous Sulphate 200mg, Folic Acid 5mg, Calcium Citrate 500mg
+ID: RX007, Patient: Deepak Gupta, Doctor: Dr. Amit Singh, Meds: Methocarbamol 750mg, Lornoxicam 8mg, Gabapentin 300mg
+ID: RX006, Patient: Meena Joshi, Doctor: Dr. Priya Sharma, Meds: Metformin 500mg, Glimepiride 2mg, Voglibose 0.3mg
+ID: RX005, Patient: Kavita Joshi, Doctor: Dr. Rajesh Kumar, Meds: Metoprolol 25mg, Nitroglycerin 0.5mg spray SOS
+ID: RX004, Patient: Sunita Verma, Doctor: Dr. Kavita Negi, Meds: Hydrocortisone cream 1%, Cetirizine 10mg
+ID: RX003, Patient: Arjun Patel, Doctor: Dr. Amit Singh, Meds: Diclofenac 75mg, Pantoprazole 40mg, Calcium 500mg
+ID: RX002, Patient: Priya Mehta, Doctor: Dr. Priya Sharma, Meds: Levothyroxine 50mcg, Vitamin D3 60K IU
+ID: RX001, Patient: Rahul Sharma, Doctor: Dr. Rajesh Kumar, Meds: Amlodipine 5mg, Aspirin 75mg, Rosuvastatin 10mg

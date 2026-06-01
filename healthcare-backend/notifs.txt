@@ -1,0 +1,52 @@
+Total count: 111
+--- LATEST 50 NOTIFICATIONS ---
+ID: N1780220545157, Title: 💊 New Prescription Issued, Message: Dr. Meena Agarwal has issued a new prescription for you: dolo., Patient: swapnil
+ID: N1780220504462, Title: 📅 Appointment Confirmed!, Message: Your appointment with Dr. Meena Agarwal has been confirmed., Patient: swapnil
+ID: N109, Title: Chatbot consultation, Message: Patient query: do i have any recent appointment , Patient: None
+ID: N108, Title: Chatbot consultation, Message: Patient query: Yes book some pores , Patient: None
+ID: N107, Title: Chatbot consultation, Message: Patient query: I am having some skin issues appointment for tommorow 11 am , Patient: None
+ID: N106, Title: Chatbot consultation, Message: Patient query: I want to book appointment , Patient: None
+ID: N105, Title: Chatbot consultation, Message: Patient query: I have a fever , Patient: None
+ID: N104, Title: Chatbot consultation, Message: Patient query: I have a fever , Patient: None
+ID: N103, Title: URGENT: High severity symptom reported, Message: I have a fever, Patient: None
+ID: N102, Title: Chatbot consultation, Message: Patient query: have symptoms like Pain starting around navel moving , vomiting, fever, loss of appetite , Patient: None
+ID: N101, Title: URGENT: High severity symptom reported, Message: have symptoms like Pain starting around navel moving , vomiting, fever, loss of appetite, Patient: None
+ID: N100, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N099, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N098, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N097, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N096, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N095, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N094, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N093, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N092, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N091, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N090, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N089, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N088, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N087, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N086, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N085, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N084, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N083, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N082, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N081, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N080, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N079, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N078, Title: URGENT: High severity symptom reported, Message: I have symptoms like Pain starting around navel moving , vomiting, fever, loss of appetite, Patient: None
+ID: N077, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N076, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N075, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N074, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N073, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N072, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N071, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N070, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N069, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N068, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N067, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N066, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N065, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N064, Title: URGENT: High severity symptom reported, Message: , Patient: None
+ID: N063, Title: Chatbot consultation, Message: Patient query:  , Patient: None
+ID: N062, Title: URGENT: High severity symptom reported, Message: , Patient: None

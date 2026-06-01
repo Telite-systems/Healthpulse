@@ -105,9 +105,8 @@ export default function Telemedicine() {
     );
     setActiveCallState(call);
 
-    // Enter the Zego room immediately — no fake delay
-    // Both users independently join the same deterministic roomID
-    setCallingState('accepted');
+    // Wait for the doctor to accept the call before joining the video room.
+    setCallingState('calling');
   };
 
   const cancelCall = () => {
