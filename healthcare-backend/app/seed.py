@@ -5,6 +5,7 @@
 # ============================================
 
 from app.database import database
+from app.config import settings
 from app.services.auth import hash_password
 import logging
 
@@ -13,6 +14,11 @@ logger = logging.getLogger(__name__)
 
 async def seed_database():
     """Seeds all collections with rich initial data if they are empty."""
+    # Skip seeding if database connection is disabled
+    if settings.SKIP_DB_CONNECTION:
+        logger.info("⏭️  Skipping database seeding (SKIP_DB_CONNECTION=True)")
+        return
+    
     logger.info("🌱 Checking if database needs seeding...")
 
     # ─── Users ───────────────────────────────────────────────────────────────

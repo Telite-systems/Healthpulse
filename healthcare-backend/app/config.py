@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
 
+    # Database Configuration
+    SKIP_DB_CONNECTION: bool = False  # Set to True to skip MongoDB connection (dev/test mode)
+    
     # External APIs (optional)
     groq_api_key: str = ""
     supabase_url: str = ""

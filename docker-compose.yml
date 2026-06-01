@@ -50,6 +50,7 @@ services:
       - NODE_ENV=production
       - WEBHOOK_URL=${WEBHOOK_TUNNEL_URL:-http://localhost:5678/}
       - N8N_RUNNERS_DISABLED=true
+      - N8N_SECURE_COOKIE=false
       - SUPABASE_SECRET_KEY=${SUPABASE_SECRET_KEY}
       # Claude / Anthropic API key for AI workflows
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}

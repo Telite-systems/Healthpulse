@@ -20,6 +20,12 @@ class Database:
 
     async def connect(self, max_retries: int = 3, retry_delay: float = 2.0):
         """Establish connection to MongoDB with retry logic."""
+        # Skip connection if in development mode without database
+        if settings.SKIP_DB_CONNECTION:
+            logger.warning("⚠️ SKIP_DB_CONNECTION is enabled - running without MongoDB")
+            logger.warning("   Use SKIP_DB_CONNECTION=False in .env to connect to MongoDB")
+            return
+        
         for attempt in range(1, max_retries + 1):
             try:
                 logger.info(f"Connecting to MongoDB at {settings.MONGODB_URL} (attempt {attempt}/{max_retries})...")
