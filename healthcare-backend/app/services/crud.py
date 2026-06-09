@@ -34,68 +34,100 @@ class CRUDService:
         query = filters or {}
         skip = (page - 1) * page_size
 
-        cursor = self.collection.find(query).sort(sort_field, sort_order).skip(skip).limit(page_size)
-        items = []
-        async for doc in cursor:
-            doc["id"] = str(doc.pop("_id"))
-            items.append(doc)
+        try:
+            cursor = self.collection.find(query).sort(sort_field, sort_order).skip(skip).limit(page_size)
+            items = []
+            async for doc in cursor:
+                doc["id"] = str(doc.pop("_id"))
+                items.append(doc)
 
-        total = await self.collection.count_documents(query)
-
-        return {
-            "data": items,
-            "total": total,
-            "page": page,
-            "pageSize": page_size,
-            "totalPages": max(1, -(-total // page_size)),  # ceil division
-        }
+            total = await self.collection.count_documents(query)
+            logger.info(f"MongoDB Read success: {len(items)} items from '{self.collection_name}' (total: {total})")
+            return {
+                "data": items,
+                "total": total,
+                "page": page,
+                "pageSize": page_size,
+                "totalPages": max(1, -(-total // page_size)),  # ceil division
+            }
+        except Exception as e:
+            logger.error(f"MongoDB Read error on '{self.collection_name}': {e}", exc_info=True)
+            raise e
 
     async def get_by_id(self, doc_id: str) -> Optional[Dict[str, Any]]:
         """Get a single document by ID."""
-        doc = await self.collection.find_one({"_id": doc_id})
-        if doc:
-            doc["id"] = str(doc.pop("_id"))
-        return doc
+        try:
+            doc = await self.collection.find_one({"_id": doc_id})
+            if doc:
+                doc["id"] = str(doc.pop("_id"))
+                logger.info(f"MongoDB Read success: fetched '{doc_id}' from '{self.collection_name}'")
+            else:
+                logger.info(f"MongoDB Read: '{doc_id}' not found in '{self.collection_name}'")
+            return doc
+        except Exception as e:
+            logger.error(f"MongoDB Read error on '{self.collection_name}' for ID '{doc_id}': {e}", exc_info=True)
+            raise e
 
     async def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new document."""
-        # Use the provided id as _id, or generate one
-        if "id" in data:
-            data["_id"] = data.pop("id")
-        elif "_id" not in data:
-            # Generate a sequential-style ID
-            data["_id"] = await self._generate_id()
+        try:
+            # Use the provided id as _id, or generate one
+            if "id" in data:
+                data["_id"] = data.pop("id")
+            elif "_id" not in data:
+                # Generate a sequential-style ID
+                data["_id"] = await self._generate_id()
 
-        now = datetime.utcnow().isoformat()
-        data.setdefault("created_at", now)
-        data["updated_at"] = now
+            now = datetime.utcnow().isoformat()
+            data.setdefault("created_at", now)
+            data["updated_at"] = now
 
-        await self.collection.insert_one(data)
-        data["id"] = str(data.pop("_id"))
-        return data
+            await self.collection.insert_one(data)
+            data["id"] = str(data.pop("_id"))
+            logger.info(f"MongoDB Write success: Created document '{data['id']}' in '{self.collection_name}'")
+            return data
+        except Exception as e:
+            logger.error(f"MongoDB Write error on '{self.collection_name}': {e}", exc_info=True)
+            raise e
 
     async def update(self, doc_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update a document by ID."""
-        # Remove None values
-        updates = {k: v for k, v in updates.items() if v is not None}
-        if not updates:
-            return await self.get_by_id(doc_id)
+        try:
+            # Remove None values
+            updates = {k: v for k, v in updates.items() if v is not None}
+            if not updates:
+                return await self.get_by_id(doc_id)
 
-        updates["updated_at"] = datetime.utcnow().isoformat()
+            updates["updated_at"] = datetime.utcnow().isoformat()
 
-        result = await self.collection.find_one_and_update(
-            {"_id": doc_id},
-            {"$set": updates},
-            return_document=True,
-        )
-        if result:
-            result["id"] = str(result.pop("_id"))
-        return result
+            result = await self.collection.find_one_and_update(
+                {"_id": doc_id},
+                {"$set": updates},
+                return_document=True,
+            )
+            if result:
+                result["id"] = str(result.pop("_id"))
+                logger.info(f"MongoDB Update success: Updated '{doc_id}' in '{self.collection_name}'")
+            else:
+                logger.warning(f"MongoDB Update: '{doc_id}' not found for update in '{self.collection_name}'")
+            return result
+        except Exception as e:
+            logger.error(f"MongoDB Update error on '{self.collection_name}' for ID '{doc_id}': {e}", exc_info=True)
+            raise e
 
     async def delete(self, doc_id: str) -> bool:
         """Delete a document by ID."""
-        result = await self.collection.delete_one({"_id": doc_id})
-        return result.deleted_count > 0
+        try:
+            result = await self.collection.delete_one({"_id": doc_id})
+            deleted = result.deleted_count > 0
+            if deleted:
+                logger.info(f"MongoDB Delete success: Removed '{doc_id}' from '{self.collection_name}'")
+            else:
+                logger.warning(f"MongoDB Delete: '{doc_id}' not found for deletion in '{self.collection_name}'")
+            return deleted
+        except Exception as e:
+            logger.error(f"MongoDB Delete error on '{self.collection_name}' for ID '{doc_id}': {e}", exc_info=True)
+            raise e
 
     async def search(self, query: str, fields: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """

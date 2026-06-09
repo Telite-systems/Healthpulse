@@ -4,7 +4,7 @@
 // ============================================
 
 import { useState, useEffect } from 'react';
-import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, AlertTriangle } from 'lucide-react';
 import { db } from '../services/realtimeDb';
 
 export default function ConnectionStatus() {
@@ -19,6 +19,7 @@ export default function ConnectionStatus() {
     connected: { icon: <Wifi size={13} />, label: 'Connected', className: 'connected' },
     disconnected: { icon: <WifiOff size={13} />, label: 'Offline', className: 'disconnected' },
     syncing: { icon: <RefreshCw size={13} className="spin" />, label: 'Syncing...', className: 'syncing' },
+    failed: { icon: <AlertTriangle size={13} />, label: 'Sync Failed', className: 'disconnected' },
   };
 
   const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.connected;

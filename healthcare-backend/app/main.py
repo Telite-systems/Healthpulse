@@ -17,6 +17,9 @@ from app.routes.dashboard import router as dashboard_router
 from app.routes.websocket import router as ws_router, event_generator
 from app.routes.signaling import router as signaling_router
 from app.routes.collections import create_collection_router
+from app.routes.vendor import router as vendor_router
+from app.routes.prescriptions import router as prescriptions_router
+from app.routes.delivery import router as delivery_router
 
 # ---- Logging Setup ----
 logging.basicConfig(
@@ -82,22 +85,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---- Request Logging Middleware ----
+@app.middleware("http")
+async def log_requests(request, call_next):
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+        process_time = (time.time() - start_time) * 1000
+        logger.info(f"API Request: {request.method} {request.url.path} - Status: {response.status_code} - Duration: {process_time:.2f}ms")
+        return response
+    except Exception as e:
+        process_time = (time.time() - start_time) * 1000
+        logger.error(f"API Request Failed: {request.method} {request.url.path} - Error: {e} - Duration: {process_time:.2f}ms", exc_info=True)
+        raise e
+
 # ---- Register Routes ----
 app.include_router(auth_router)
 app.include_router(dashboard_router)
 app.include_router(ws_router)
 app.include_router(signaling_router)  # ← Call signaling (per-user WebSocket)
+app.include_router(vendor_router)
+app.include_router(prescriptions_router)
+app.include_router(delivery_router)
 
 # ---- Dynamic Collection CRUD Routes ----
 collection_configs = [
     ("patients", "Patients"),
     ("doctors", "Doctors"),
     ("staff", "Staff"),
+    ("users", "Users"),
     ("departments", "Departments"),
     ("appointments", "Appointments"),
     ("visits", "Patient Visits"),
     ("billing", "Billing"),
-    ("prescriptions", "Prescriptions"),
     ("notifications", "Notifications"),
 ]
 

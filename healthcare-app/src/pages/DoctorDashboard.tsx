@@ -56,7 +56,7 @@ export default function DoctorDashboard() {
   const [prescriptions, setPrescriptions] = useState<any[]>(FALLBACK_PRESCRIPTIONS);
   const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [prescriptionForm, setPrescriptionForm] = useState({ patient: '', medicines: '', dosage: '', duration: '', instructions: '' });
+  const [prescriptionForm, setPrescriptionForm] = useState({ patient: '', medicines: '', dosage: '', duration: '', instructions: '', diagnosis: '' });
   const [showPrescForm, setShowPrescForm] = useState(false);
   const [editRxId, setEditRxId] = useState<string | null>(null);
   const [showConsult, setShowConsult] = useState(false);
@@ -134,6 +134,8 @@ export default function DoctorDashboard() {
             type: a.type || 'Consultation', status: a.status || 'Pending',
             department: a.department || '',
             avatar: '👤',
+            patientId: a.patientId || a.patient_id || '',
+            doctorId: a.doctorId || a.doctor_id || '',
           })));
         }
         if (prescriptionsRes.status === 'fulfilled' && prescriptionsRes.value?.data?.data?.length) {
@@ -203,11 +205,12 @@ export default function DoctorDashboard() {
     if (!rx) return;
     setEditRxId(rxId);
     setPrescriptionForm({
-      patient: rx.patient || '',
-      medicines: rx.medicines || '',
+      patient: rx.patient || rx.patientName || '',
+      medicines: rx.medicines || rx.medications || '',
       dosage: rx.dosage || '',
       duration: rx.duration || '',
       instructions: rx.instructions || '',
+      diagnosis: rx.diagnosis || '',
     });
     setShowPrescForm(true);
     setActiveTab('prescriptions');
@@ -219,42 +222,48 @@ export default function DoctorDashboard() {
       return;
     }
     setSaving(true);
-    const rxData = {
+
+    // ── Resolve patient_id from patients list or appointments ──
+    const patientNameLower = prescriptionForm.patient.toLowerCase().trim();
+    const matchedPatient = patients.find(p => p.name.toLowerCase().trim() === patientNameLower);
+    const matchedAppointment = appointments.find(a => (a.patient || '').toLowerCase().trim() === patientNameLower);
+    const resolvedPatientId = matchedPatient?.id || (matchedAppointment as any)?.patientId || '';
+    const resolvedAppointmentId = (matchedAppointment as any)?.id || '';
+
+    const rxData: any = {
       id: editRxId || `RX${Date.now()}`,
       patientName: prescriptionForm.patient,
+      patient_id: resolvedPatientId,
+      patientId: resolvedPatientId,
       doctorName: user?.name || 'Doctor',
+      doctor_id: user?.id || '',
+      doctorId: user?.id || '',
+      appointment_id: resolvedAppointmentId,
+      appointmentId: resolvedAppointmentId,
       date: new Date().toISOString().split('T')[0],
       medications: prescriptionForm.medicines,
+      medicines: prescriptionForm.medicines,
       dosage: prescriptionForm.dosage || 'As directed',
       duration: prescriptionForm.duration || '7 days',
       instructions: prescriptionForm.instructions || '',
+      diagnosis: prescriptionForm.diagnosis || 'General Consultation',
       status: 'Active',
       createdAt: new Date().toISOString(),
     };
     try {
       if (editRxId) {
-        await api.update('prescriptions', editRxId, rxData as any);
+        await api.update('prescriptions', editRxId, rxData);
         toast.success('Prescription Updated', `Prescription for ${prescriptionForm.patient} updated`);
       } else {
-        await api.create('prescriptions', rxData as any);
-
-        // Create database notification for patient
-        const notifData = {
-          id: `N${Date.now()}`,
-          title: '💊 New Prescription Issued',
-          message: `${user?.name || 'Doctor'} has issued a new prescription for you: ${prescriptionForm.medicines}.`,
-          type: 'success',
-          time: 'Just now',
-          read: false,
-          patientName: prescriptionForm.patient,
-          createdAt: new Date().toISOString()
-        };
-        await api.create('notifications', notifData as any);
-
-        toast.success('Prescription Saved', `Prescription for ${prescriptionForm.patient} created`);
+        await api.create('prescriptions', rxData);
+        // Backend prescription router auto-generates patient notification
+        toast.success('Prescription Saved', `Prescription for ${prescriptionForm.patient} created & patient notified`);
       }
-    } catch {
-      toast.info(editRxId ? 'Updated Locally' : 'Saved Locally', 'Prescription saved (backend sync pending)');
+    } catch (err: any) {
+      console.error('Prescription save error:', err);
+      toast.error('Save Failed', err?.message || 'Could not save prescription to backend');
+      setSaving(false);
+      return;
     }
     if (editRxId) {
       setPrescriptions(prev => prev.map(rx =>
@@ -265,7 +274,7 @@ export default function DoctorDashboard() {
     } else {
       setPrescriptions(prev => [{ id: rxData.id, patient: rxData.patientName, medicines: rxData.medications, date: rxData.date, status: 'Active' }, ...prev]);
     }
-    setPrescriptionForm({ patient: '', medicines: '', dosage: '', duration: '', instructions: '' });
+    setPrescriptionForm({ patient: '', medicines: '', dosage: '', duration: '', instructions: '', diagnosis: '' });
     setEditRxId(null);
     setShowPrescForm(false);
     setSaving(false);
@@ -653,7 +662,7 @@ export default function DoctorDashboard() {
           <div className="glass-card" style={{ padding: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ margin: 0, fontWeight: 700 }}>{editRxId ? '✏️ Update Prescription' : '✍️ Write New Prescription'}</h3>
-              <button className={`btn btn-${showPrescForm ? 'secondary' : 'primary'} btn-sm`} onClick={() => { setShowPrescForm(f => !f); if (showPrescForm) { setEditRxId(null); setPrescriptionForm({ patient: '', medicines: '', dosage: '', duration: '', instructions: '' }); } }}>
+              <button className={`btn btn-${showPrescForm ? 'secondary' : 'primary'} btn-sm`} onClick={() => { setShowPrescForm(f => !f); if (showPrescForm) { setEditRxId(null); setPrescriptionForm({ patient: '', medicines: '', dosage: '', duration: '', instructions: '', diagnosis: '' }); } }}>
                 {showPrescForm ? 'Cancel' : '+ New Prescription'}
               </button>
             </div>
@@ -661,6 +670,7 @@ export default function DoctorDashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                  {[
                   { label: 'Patient Name', key: 'patient', placeholder: 'Select patient' },
+                  { label: 'Diagnosis', key: 'diagnosis', placeholder: 'e.g. Hypertension Stage 1' },
                   { label: 'Medicines', key: 'medicines', placeholder: 'e.g. Paracetamol 500mg' },
                   { label: 'Dosage', key: 'dosage', placeholder: 'e.g. 1 tablet twice daily' },
                   { label: 'Duration', key: 'duration', placeholder: 'e.g. 7 days' },

@@ -73,6 +73,19 @@ const staffNav = [
   ]},
 ];
 
+const vendorNav = [
+  { label: 'MAIN', items: [
+    { to: '/dashboard', icon: LayoutDashboard, text: 'Dashboard' },
+    { to: '/dashboard/orders', icon: Pill, text: 'Medicine Orders' },
+    { to: '/dashboard/inventory', icon: Database, text: 'Inventory' },
+  ]},
+  { label: 'TOOLS', items: [
+    { to: '/dashboard/chatbot', icon: MessageSquare, text: 'Chatbot Assistant' },
+    { to: '/dashboard/settings', icon: Settings, text: 'Settings' },
+    { to: '/dashboard/help-center', icon: HelpCircle, text: 'Help Center' },
+  ]},
+];
+
 // ─── Role badge config ────────────────────────────────────────────────────────
 
 const roleMeta: Record<string, { label: string; color: string; bg: string; icon: any }> = {
@@ -80,6 +93,7 @@ const roleMeta: Record<string, { label: string; color: string; bg: string; icon:
   Doctor:  { label: 'Medical Doctor',    color: '#0891b2', bg: 'rgba(8,145,178,0.12)',   icon: Stethoscope },
   Patient: { label: 'Patient Portal',    color: '#10b981', bg: 'rgba(16,185,129,0.12)', icon: Heart },
   Staff:   { label: 'Hospital Staff',    color: '#6366f1', bg: 'rgba(99,102,241,0.12)', icon: UserCog },
+  Vendor:  { label: 'Pharmacy Vendor',   color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  icon: Pill },
 };
 
 interface SidebarProps {
@@ -97,6 +111,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const navItems = role === 'Doctor' ? doctorNav
     : role === 'Patient' ? patientNav
     : role === 'Staff'   ? staffNav
+    : role === 'Vendor'  ? vendorNav
     : adminNav;
 
   const meta = roleMeta[role] ?? roleMeta.Admin;

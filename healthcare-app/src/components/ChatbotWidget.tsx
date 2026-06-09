@@ -178,25 +178,81 @@ export default function ChatbotWidget() {
   }, []);
 
   // ── TTS ───────────────────────────────────────────────────────────────────
+  // Sync the mutable ref with isMuted state
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+    if (isMuted) {
+      window.speechSynthesis?.cancel();
+    }
+  }, [isMuted]);
+
   const speakRef = useRef<(text: string) => void>(() => { });
   speakRef.current = (text: string) => {
     if (isMutedRef.current || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
+    
     const clean = text
       .replace(/QUICK_ACTIONS:.*/gi, '')
       .replace(/[🚨📋⚠️💊🌡️😊🥺👋🙏•*_]/g, '')
       .trim();
-    const utt = new SpeechSynthesisUtterance(clean);
-    utt.lang = 'hi-IN';
-    utt.pitch = 1.05; utt.rate = 0.93;
-    const voices = window.speechSynthesis.getVoices();
-    const best = voices.find(v => v.lang === 'hi-IN')
-      ?? voices.find(v => v.lang.startsWith('en'))
-      ?? null;
-    if (best) utt.voice = best;
-    window.speechSynthesis.speak(utt);
+      
+    if (!clean) return;
+
+    // Split text by punctuation (. ! ? | and newline) to prevent Chrome's long-text freeze bug
+    const sentenceEndRegex = /[.!?|।\n]/;
+    const rawChunks = clean.split(sentenceEndRegex).map(s => s.trim()).filter(Boolean);
+    const chunks = rawChunks.length > 0 ? rawChunks : [clean];
+    
+    let currentIndex = 0;
+    
+    const playNext = () => {
+      if (isMutedRef.current || !window.speechSynthesis || currentIndex >= chunks.length) return;
+      
+      const chunkText = chunks[currentIndex];
+      const utt = new SpeechSynthesisUtterance(chunkText);
+      utt.lang = 'hi-IN';
+      utt.pitch = 1.05;
+      utt.rate = 0.93;
+      
+      const voices = window.speechSynthesis.getVoices();
+      const best = voices.find(v => {
+        const l = v.lang.toLowerCase().replace('_', '-');
+        return l === 'hi-in';
+      }) ?? voices.find(v => {
+        const l = v.lang.toLowerCase().replace('_', '-');
+        return l.startsWith('en');
+      }) ?? null;
+      
+      if (best) utt.voice = best;
+      
+      utt.onend = () => {
+        currentIndex++;
+        playNext();
+      };
+      
+      utt.onerror = () => {
+        currentIndex++;
+        playNext();
+      };
+      
+      window.speechSynthesis.speak(utt);
+    };
+    
+    playNext();
   };
   const speak = (text: string) => speakRef.current(text);
+
+  // Speak welcome/last message when chat opens, or cancel on close
+  useEffect(() => {
+    if (isOpen) {
+      const lastBot = [...messages].reverse().find(msg => msg.sender === 'bot');
+      if (lastBot && !isMuted) {
+        setTimeout(() => speak(lastBot.text), 150);
+      }
+    } else {
+      window.speechSynthesis?.cancel();
+    }
+  }, [isOpen]);
 
   // ── Call n8n webhook ───────────────────────────────────────────────────────
   const callN8n = useCallback(async (userText: string) => {

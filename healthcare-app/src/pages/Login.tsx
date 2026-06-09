@@ -35,10 +35,11 @@ const ROLES = [
   { key: 'Admin',   label: 'Admin',   icon: '🛡️', desc: 'Full system control',      color: '#ef4444', bg: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.3)' },
   { key: 'Doctor',  label: 'Doctor',  icon: '👨‍⚕️', desc: 'Clinical management',      color: '#0891b2', bg: 'rgba(8,145,178,0.08)',   border: 'rgba(8,145,178,0.3)' },
   { key: 'Patient', label: 'Patient', icon: '🏥', desc: 'Patient health portal',     color: '#10b981', bg: 'rgba(16,185,129,0.08)',  border: 'rgba(16,185,129,0.3)' },
+  { key: 'Vendor',  label: 'Vendor',  icon: '💊', desc: 'Pharmacy & orders',        color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.3)' },
 ] as const;
 
 export default function Login() {
-  const [selectedRole, setSelectedRole] = useState<'Admin' | 'Doctor' | 'Patient'>('Admin');
+  const [selectedRole, setSelectedRole] = useState<'Admin' | 'Doctor' | 'Patient' | 'Vendor'>('Admin');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -441,12 +442,12 @@ export default function Login() {
           /* ── EXISTING LOGIN FORM ── */
           <>
             {/* Role selection cards (only for login) */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
               {ROLES.map(role => (
                 <button key={role.key} type="button"
                   onClick={() => { setSelectedRole(role.key); setUsername(''); setPassword(''); setError(''); }}
                   style={{
-                    padding: '12px 8px', borderRadius: 14, border: `2px solid ${selectedRole === role.key ? role.color : 'var(--border-color)'}`,
+                    padding: '12px 6px', borderRadius: 14, border: `2px solid ${selectedRole === role.key ? role.color : 'var(--border-color)'}`,
                     background: selectedRole === role.key ? role.bg : 'transparent',
                     cursor: 'pointer', transition: 'all 0.22s', textAlign: 'center',
                     transform: selectedRole === role.key ? 'translateY(-2px)' : 'none',
@@ -549,6 +550,7 @@ export default function Login() {
                   { label: 'Doctor',  user: 'doctor',  pass: 'doctor123',  icon: '👨‍⚕️', color: '#0891b2', role: 'Doctor'  },
                   { label: 'Patient', user: 'patient', pass: 'patient123', icon: '🏥',  color: '#10b981', role: 'Patient' },
                   { label: 'Staff',   user: 'staff',   pass: 'staff123',   icon: '👩‍💼', color: '#8b5cf6', role: 'Staff'   },
+                  { label: 'Vendor',  user: 'vendor',  pass: 'vendor123',  icon: '💊',  color: '#f59e0b', role: 'Vendor'  },
                 ].map((cred) => (
                   <button key={cred.user} className="demo-cred-btn"
                     onClick={() => { fillCredentials(cred.user, cred.pass); setSelectedRole(cred.role as any); }}

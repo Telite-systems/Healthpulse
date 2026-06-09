@@ -18,7 +18,26 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-  const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Filter notifications by user role
+  const filteredNotifs = notifications.filter(n => {
+    if (!user) return true;
+    if (user.role === 'Patient') {
+      const pName = (n.patientName || '').toLowerCase().trim();
+      const currPName = (user.name || '').toLowerCase().trim();
+      if (n.doctorId && pName !== currPName) return false;
+      return !n.patientName || pName === currPName;
+    }
+    if (user.role === 'Doctor') {
+      const dName = (n.doctorName || '').toLowerCase().trim();
+      const currDName = (user.name || '').toLowerCase().trim();
+      const matchesDoc = (n.doctorId && n.doctorId === user.id) || (dName && (dName.includes(currDName) || currDName.includes(dName)));
+      return matchesDoc || (!n.doctorId && !n.patientName);
+    }
+    return true; // Admin/Staff see all
+  });
+
+  const unreadCount = filteredNotifs.filter(n => !n.read).length;
 
   // Fetch notifications from backend
   useEffect(() => {
@@ -111,7 +130,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 <button className="mark-read-btn" onClick={markAllRead}>Mark all read</button>
               </div>
               <div className="notification-list">
-                {notifications.map(n => (
+                {filteredNotifs.map(n => (
                   <div key={n.id} className={`notification-item ${!n.read ? 'unread' : ''}`}>
                     <div className={`notification-dot ${n.type}`} />
                     <div className="notification-content">

@@ -8,7 +8,7 @@
 import { api } from './api';
 
 export type Unsubscribe    = () => void;
-export type DbStatus       = 'connected' | 'disconnected' | 'syncing' | 'offline';
+export type DbStatus       = 'connected' | 'disconnected' | 'syncing' | 'offline' | 'failed';
 export type DbEventType    = 'added' | 'modified' | 'removed' | 'initial';
 
 export interface DbEvent<T> {
@@ -98,39 +98,25 @@ class RealtimeDatabase {
 
   /** Add document with optimistic UI update */
   async add<T extends { id: string }>(collection: string, item: T): Promise<T> {
-    // Optimistic: add to cache immediately
-    const draft = { ...item };
-    this._patch(collection, draft, 'added', true);
-
     try {
       this._setStatus('syncing');
       const res = await api.create<T>(collection, item);
       const created = res.data;
 
-      // Replace draft with server response
-      const col = this.data.get(collection) ?? [];
-      const idx = col.findIndex(d => d.id === draft.id);
-      if (idx !== -1) col[idx] = created; else col.push(created);
-      this.data.set(collection, [...col]);
+      // Update cache only after server response
+      this._patch(collection, created, 'added', true);
       this._setStatus('connected');
-      this._notify(collection, col, { type: 'added', data: created, timestamp: Date.now(), collection });
       return created;
     } catch (err) {
-      // Rollback
-      this._removeLocal(collection, draft.id);
-      this._enqueueOffline('add', collection, item);
+      this._setStatus('failed');
       throw err;
     }
   }
 
-  /** Update document with optimistic UI update */
+  /** Update document with server confirmation */
   async update<T extends { id: string }>(collection: string, id: string, updates: Partial<T>): Promise<T | null> {
     const prev = this.getById<T>(collection, id);
     if (!prev) return null;
-
-    // Optimistic update
-    const optimistic = { ...prev, ...updates };
-    this._patch(collection, optimistic, 'modified', false);
 
     try {
       this._setStatus('syncing');
@@ -140,28 +126,25 @@ class RealtimeDatabase {
       this._setStatus('connected');
       return updated;
     } catch (err) {
-      // Rollback
-      this._patch(collection, prev, 'modified', false);
-      this._enqueueOffline('update', collection, { id, ...updates });
+      this._setStatus('failed');
       throw err;
     }
   }
 
-  /** Remove document */
+  /** Remove document with server confirmation */
   async remove<T extends { id: string }>(collection: string, id: string): Promise<boolean> {
     const item = this.getById<T>(collection, id);
-    this._removeLocal(collection, id);
+    if (!item) return false;
 
     try {
       this._setStatus('syncing');
       await api.delete(collection, id);
+      this._removeLocal(collection, id);
       this._setStatus('connected');
-      if (item) this._notify(collection, this.getAll(collection), { type: 'removed', data: item, timestamp: Date.now(), collection });
+      this._notify(collection, this.getAll(collection), { type: 'removed', data: item, timestamp: Date.now(), collection });
       return true;
     } catch (err) {
-      // Rollback
-      if (item) { const col = this.data.get(collection) ?? []; col.push(item); this.data.set(collection, col); }
-      this._enqueueOffline('remove', collection, { id });
+      this._setStatus('failed');
       throw err;
     }
   }
@@ -222,8 +205,14 @@ class RealtimeDatabase {
   private async _fetchCollection<T>(name: string, defaults?: T[]): Promise<void> {
     try {
       this._setStatus('syncing');
-      const res = await api.getAll<T>(name, 1, 200);
-      const items = res.data.data;
+      let items: T[];
+      if (name === 'vendors') {
+        const res = await api.getVendors();
+        items = res.data as unknown as T[];
+      } else {
+        const res = await api.getAll<T>(name, 1, 200);
+        items = res.data.data;
+      }
       this.data.set(name, items);
       this._setStatus('connected');
       this._notify(name, items, { type: 'initial', data: items[0], timestamp: Date.now(), collection: name });
@@ -268,11 +257,11 @@ class RealtimeDatabase {
     this.statusListeners.forEach(l => l(s));
   }
 
-  private _enqueueOffline(type: OfflineOp['type'], collection: string, payload: any): void {
-    this.offlineQueue.push({
-      id: `off_${Date.now()}`, type, collection, payload, timestamp: Date.now(), retries: 0,
-    });
-  }
+  // private _enqueueOffline(type: OfflineOp['type'], collection: string, payload: any): void {
+  //   this.offlineQueue.push({
+  //     id: `off_${Date.now()}`, type, collection, payload, timestamp: Date.now(), retries: 0,
+  //   });
+  // }
 }
 
 export const db = new RealtimeDatabase();

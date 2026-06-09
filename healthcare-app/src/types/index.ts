@@ -25,6 +25,8 @@ export interface Doctor {
   department: string;
   availability: string;
   status: 'Available' | 'On Leave' | 'Busy';
+  licenseNo?: string;
+  licenseValidity?: string;
 }
 
 export interface Staff {
@@ -50,11 +52,13 @@ export interface Department {
 export interface Appointment {
   id: string;
   patientName: string;
+  patientId?: string;
   doctorName: string;
+  doctorId?: string;
   department: string;
   date: string;
   time: string;
-  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'In Progress';
+  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'In Progress' | 'Pending' | 'Confirmed';
   type: 'Consultation' | 'Follow-up' | 'Emergency';
   notes: string;
   createdAt: string;
@@ -108,12 +112,80 @@ export interface Prescription {
 export interface User {
   id: string;
   username: string;
-  password: string;
+  password?: string;
   name: string;
-  role: 'Admin' | 'Doctor' | 'Staff' | 'Patient';
+  role: 'Admin' | 'Doctor' | 'Staff' | 'Patient' | 'Vendor';
   avatar: string;
   specialization?: string;
   department?: string;
+  address?: string;
+  contact?: string;
+}
+
+export interface Vendor {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  contact: string;
+  address: string;
+  rating: number;
+  distance: string;
+  deliveryTime: string;
+  status: 'Active' | 'Inactive';
+}
+
+export interface MedicineOrderItem {
+  name: string;
+  quantity: number;
+  price: number;
+  instructions?: string;
+}
+
+export interface MedicineOrder {
+  id: string;
+  patientId: string;
+  patientName: string;
+  prescriptionId: string;
+  doctorId: string;
+  doctorName: string;
+  medicines: MedicineOrderItem[];
+  deliveryAddress: string;
+  contactNumber: string;
+  vendorId: string;
+  vendorName: string;
+  status: 'Created' | 'Assigned' | 'Accepted' | 'Rejected' | 'Processing' | 'Ready for Dispatch' | 'Out for Delivery' | 'Delivered';
+  totalAmount: number;
+  totalPrice?: number;
+  deliveryEta: string;
+  createdAt: string;
+  instructions?: string;
+  prescriptionUrl?: string;
+  paymentMethod?: 'UPI' | 'Card' | 'Net Banking' | 'COD';
+  paymentStatus?: 'Pending' | 'Paid' | 'Failed';
+}
+
+export interface InventoryItem {
+  id: string;
+  vendorId: string;
+  medicineName: string;
+  sku: string;
+  quantity: number;
+  expiryDate: string;
+  price: number;
+  manufacturer: string;
+  category?: string;
+  description?: string;
+  dosageInfo?: string;
+  isPrescriptionRequired?: boolean;
+}
+
+export interface VendorAnalytics {
+  id?: string;
+  vendorId: string;
+  date: string;
+  dailyOrders: number;
+  revenue: number;
 }
 
 export interface ChatMessage {

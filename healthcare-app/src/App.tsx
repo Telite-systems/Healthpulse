@@ -19,6 +19,9 @@ import Telemedicine from './pages/Telemedicine';
 import HelpCenter from './pages/HelpCenter';
 import DoctorDashboard from './pages/DoctorDashboard';
 import PatientDashboard from './pages/PatientDashboard';
+import VendorOrders from './pages/VendorOrders';
+import VendorInventory from './pages/VendorInventory';
+import DeliveryTrackingPage from './pages/DeliveryTrackingPage';
 
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -187,6 +190,19 @@ function AppRoutes() {
         <Route path="patient/records"        element={<Navigate to="/dashboard" replace />} />
         <Route path="patient/prescriptions"  element={<Navigate to="/dashboard" replace />} />
         <Route path="patient/notifications"  element={<Navigate to="/dashboard" replace />} />
+
+        {/* ── Vendor sub-pages ── */}
+        <Route path="orders" element={
+          <RoleRoute roles={['Vendor', 'Admin']}>
+            <VendorOrders />
+          </RoleRoute>
+        } />
+        <Route path="inventory" element={
+          <RoleRoute roles={['Vendor', 'Admin']}>
+            <VendorInventory />
+          </RoleRoute>
+        } />
+        <Route path="track/:orderId" element={<DeliveryTrackingPage />} />
       </Route>
 
       {/* Doctor-specific full pages */}

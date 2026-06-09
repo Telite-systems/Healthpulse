@@ -4,7 +4,7 @@
 // with feature-level + data-level permissions
 // ============================================
 
-export type Role = 'Admin' | 'Doctor' | 'Staff' | 'Patient';
+export type Role = 'Admin' | 'Doctor' | 'Staff' | 'Patient' | 'Vendor';
 
 export interface Permission {
   view:   boolean;
@@ -17,7 +17,7 @@ export type Resource =
   | 'dashboard' | 'patients' | 'doctors' | 'staff' | 'departments'
   | 'appointments' | 'visits' | 'billing' | 'prescriptions'
   | 'reports' | 'settings' | 'telemedicine' | 'chatbot' | 'helpCenter'
-  | 'ownRecords' | 'bookAppointment' | 'notifications';
+  | 'ownRecords' | 'bookAppointment' | 'notifications' | 'medicineOrders' | 'inventory';
 
 export type RolePermissions = Record<Resource, Permission>;
 
@@ -45,6 +45,8 @@ const PERMISSIONS: Record<Role, RolePermissions> = {
     ownRecords:      READ,
     bookAppointment: FULL,
     notifications:   READ,
+    medicineOrders:  FULL,
+    inventory:       FULL,
   },
   Doctor: {
     dashboard:       READ,
@@ -64,6 +66,8 @@ const PERMISSIONS: Record<Role, RolePermissions> = {
     ownRecords:      READ,
     bookAppointment: { view: true, create: true, edit: false, delete: false },
     notifications:   READ,
+    medicineOrders:  READ,
+    inventory:       NONE,
   },
   Staff: {
     dashboard:       READ,
@@ -83,6 +87,8 @@ const PERMISSIONS: Record<Role, RolePermissions> = {
     ownRecords:      NONE,
     bookAppointment: NONE,
     notifications:   READ,
+    medicineOrders:  READ,
+    inventory:       NONE,
   },
   Patient: {
     dashboard:       READ,
@@ -102,6 +108,29 @@ const PERMISSIONS: Record<Role, RolePermissions> = {
     ownRecords:      READ,
     bookAppointment: { view: true, create: true, edit: false, delete: false },
     notifications:   READ,
+    medicineOrders:  WRITE,
+    inventory:       NONE,
+  },
+  Vendor: {
+    dashboard:       READ,
+    patients:        NONE,
+    doctors:         NONE,
+    staff:           NONE,
+    departments:     NONE,
+    appointments:    NONE,
+    visits:          NONE,
+    billing:         NONE,
+    prescriptions:   READ,
+    reports:         NONE,
+    settings:        { view: true, create: false, edit: true, delete: false },
+    telemedicine:    NONE,
+    chatbot:         WRITE,
+    helpCenter:      READ,
+    ownRecords:      NONE,
+    bookAppointment: NONE,
+    notifications:   READ,
+    medicineOrders:  WRITE,
+    inventory:       FULL,
   },
 };
 
@@ -126,6 +155,9 @@ export function getAllowedRoutes(role: Role): string[] {
   if (role === 'Patient')
     return [...base];
 
+  if (role === 'Vendor')
+    return [...base, '/dashboard/inventory', '/dashboard/orders'];
+
   return base;
 }
 
@@ -136,6 +168,7 @@ export function getRoleMeta(role: Role): { label: string; color: string; bg: str
     case 'Doctor':  return { label: 'Medical Doctor',  color: '#0891b2', bg: 'rgba(8,145,178,0.12)',   icon: '👨‍⚕️' };
     case 'Patient': return { label: 'Patient Portal',  color: '#10b981', bg: 'rgba(16,185,129,0.12)', icon: '🏥' };
     case 'Staff':   return { label: 'Hospital Staff',  color: '#6366f1', bg: 'rgba(99,102,241,0.12)', icon: '👩‍💼' };
+    case 'Vendor':  return { label: 'Pharmacy Vendor', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  icon: '💊' };
     default:        return { label: role,              color: '#64748b', bg: 'rgba(100,116,139,0.1)', icon: '👤' };
   }
 }

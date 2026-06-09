@@ -18,6 +18,19 @@ class PrescriptionModel(MongoBaseModel):
     instructions: str
     status: Literal["Active", "Completed", "Expired"] = "Active"
     createdAt: Optional[str] = None
+    
+    # Validation fields
+    prescription_id: Optional[str] = None
+    prescriptionId: Optional[str] = None
+    doctor_id: Optional[str] = None
+    doctorId: Optional[str] = None
+    patient_id: Optional[str] = None
+    patientId: Optional[str] = None
+    appointment_id: Optional[str] = None
+    appointmentId: Optional[str] = None
+    medicines: Optional[str] = None
+    diagnosis: Optional[str] = None
+    created_at: Optional[str] = None
 
 
 class PrescriptionCreate(BaseModel):
@@ -32,6 +45,19 @@ class PrescriptionCreate(BaseModel):
     instructions: str
     status: Literal["Active", "Completed", "Expired"] = "Active"
     createdAt: Optional[str] = None
+    
+    # Validation fields
+    prescription_id: Optional[str] = None
+    prescriptionId: Optional[str] = None
+    doctor_id: Optional[str] = None
+    doctorId: Optional[str] = None
+    patient_id: Optional[str] = None
+    patientId: Optional[str] = None
+    appointment_id: Optional[str] = None
+    appointmentId: Optional[str] = None
+    medicines: Optional[str] = None
+    diagnosis: Optional[str] = None
+    created_at: Optional[str] = None
 
 
 class PrescriptionUpdate(BaseModel):
@@ -44,3 +70,16 @@ class PrescriptionUpdate(BaseModel):
     duration: Optional[str] = None
     instructions: Optional[str] = None
     status: Optional[Literal["Active", "Completed", "Expired"]] = None
+    
+    # Validation fields
+    prescription_id: Optional[str] = None
+    prescriptionId: Optional[str] = None
+    doctor_id: Optional[str] = None
+    doctorId: Optional[str] = None
+    patient_id: Optional[str] = None
+    patientId: Optional[str] = None
+    appointment_id: Optional[str] = None
+    appointmentId: Optional[str] = None
+    medicines: Optional[str] = None
+    diagnosis: Optional[str] = None
+    created_at: Optional[str] = None

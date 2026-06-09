@@ -1,8 +1,9 @@
-Total count: 13
+Total count: 14
 --- LATEST 50 PRESCRIPTIONS ---
-ID: RX1776864617877, Patient: Rahul Sharma, Doctor: Dr. James Wilson, Meds: dolo650mg
+ID: RX1780429078086, Patient: swapnil, Doctor: Dr. Meena Agarwal, Meds: paracetamol
 ID: RX1776691116377, Patient: Rahul Sharma, Doctor: Dr. James Wilson, Meds: dolo 650mg
 ID: RX1776689065744, Patient: Rahul Sharma, Doctor: Dr. James Wilson, Meds: dolo650mg
+ID: RX014, Patient: Patient 33BD, Doctor: Dr. James Wilson, Meds: Amlodipine 5mg, Rosuvastatin 10mg
 ID: RX010, Patient: Ramesh Negi, Doctor: Dr. Arun Mishra, Meds: Salbutamol inhaler, Tiotropium 18mcg, Budesonide 200mcg
 ID: RX009, Patient: Rohit Malhotra, Doctor: Dr. Sunil Verma, Meds: Paracetamol 650mg, Amitriptyline 10mg
 ID: RX008, Patient: Pooja Agarwal, Doctor: Dr. Anita Malhotra, Meds: Ferrous Sulphate 200mg, Folic Acid 5mg, Calcium Citrate 500mg

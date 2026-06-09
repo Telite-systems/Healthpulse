@@ -15,6 +15,7 @@ export default function Telemedicine() {
 
   // Doctor selection state
   const [doctors, setDoctors] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
   const [callingState, setCallingState] = useState<'idle' | 'calling' | 'accepted' | 'rejected' | 'missed'>('idle');
@@ -42,6 +43,18 @@ export default function Telemedicine() {
       } catch { /* fallback */ }
       setDoctors(mockDoctors);
     };
+    const fetchUsers = async () => {
+      try {
+        const res = await api.getAll<any>('users', 1, 100);
+        if (res?.data?.data?.length) {
+          setUsers(res.data.data);
+          return;
+        }
+      } catch {
+        setUsers(mockUsers);
+      }
+    };
+    fetchUsers();
     fetchDoctors();
   }, []);
 
@@ -97,7 +110,8 @@ export default function Telemedicine() {
     const roomId = generateRoomID(user.id || 'patient', doctor.id || 'doctor');
     setZegoRoomID(roomId);
 
-    const matchedDoctorUser = mockUsers.find((usr) => usr.role === 'Doctor' && usr.name === doctor.name);
+    const matchedDoctorUser = users.find((usr) => usr.role === 'Doctor' && (usr.name || '').toLowerCase().trim() === (doctor.name || '').toLowerCase().trim())
+      || mockUsers.find((usr) => usr.role === 'Doctor' && usr.name === doctor.name);
     const doctorSignalId = matchedDoctorUser?.id || doctor.id || '';
     const doctorSignalName = doctor.name || 'Doctor';
 
@@ -416,6 +430,13 @@ export default function Telemedicine() {
                     <Clock size={11} /> Available
                   </div>
                 </div>
+
+                {doc.licenseNo && (
+                  <div style={{ marginTop: -8, marginBottom: 16, fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <span><span style={{ fontWeight: 600 }}>Lic. No:</span> {doc.licenseNo}</span>
+                    {doc.licenseValidity && <span><span style={{ fontWeight: 600 }}>Validity:</span> {doc.licenseValidity}</span>}
+                  </div>
+                )}
 
                 {/* Call buttons */}
                 <div style={{ display: 'flex', gap: 10 }}>

@@ -3,9 +3,9 @@ import { Plus, Search, Pencil, Trash2, X, RefreshCw, Loader2 } from 'lucide-reac
 import { useRealtimeCollection } from '../hooks/useRealtimeCollection';
 import { useToastContext } from '../context/ToastContext';
 import Skeleton from '../components/Skeleton';
-import type { Patient, Doctor, Staff, Department } from '../types';
+import type { Patient, Doctor, Staff, Department, Vendor } from '../types';
 
-type Tab = 'patients' | 'doctors' | 'staff' | 'departments';
+type Tab = 'patients' | 'doctors' | 'staff' | 'departments' | 'vendors';
 
 export default function MasterData() {
   const [tab, setTab] = useState<Tab>('patients');
@@ -21,14 +21,16 @@ export default function MasterData() {
   const doctors = useRealtimeCollection<Doctor>('doctors', { searchQuery: tab === 'doctors' ? search : '' });
   const staffList = useRealtimeCollection<Staff>('staff', { searchQuery: tab === 'staff' ? search : '' });
   const departments = useRealtimeCollection<Department>('departments', { searchQuery: tab === 'departments' ? search : '' });
+  const vendors = useRealtimeCollection<Vendor>('vendors', { searchQuery: tab === 'vendors' ? search : '' });
 
-  const current = tab === 'patients' ? patients : tab === 'doctors' ? doctors : tab === 'staff' ? staffList : departments;
+  const current = tab === 'patients' ? patients : tab === 'doctors' ? doctors : tab === 'staff' ? staffList : tab === 'departments' ? departments : vendors;
 
   const tabs: { key: Tab; label: string; icon: string; count: number }[] = [
     { key: 'patients', label: 'Patients', icon: '👤', count: patients.data.length },
     { key: 'doctors', label: 'Doctors', icon: '🩺', count: doctors.data.length },
     { key: 'staff', label: 'Staff', icon: '👥', count: staffList.data.length },
     { key: 'departments', label: 'Departments', icon: '🏥', count: departments.data.length },
+    { key: 'vendors', label: 'Pharmacy Vendors', icon: '💊', count: vendors.data.length },
   ];
 
   const openAdd = () => { setEditId(null); setForm({}); setShowModal(true); };
@@ -78,7 +80,9 @@ export default function MasterData() {
           contact: form.contact || '', email: form.email || '',
           experience: parseInt(form.experience) || 0, department: form.department || '',
           availability: form.availability || '',
-          status: (form.status as Doctor['status']) || 'Available'
+          status: (form.status as Doctor['status']) || 'Available',
+          licenseNo: form.licenseNo || '',
+          licenseValidity: form.licenseValidity || ''
         };
         if (editId) await doctors.update(editId, entry);
         else await doctors.add(entry);
@@ -105,6 +109,18 @@ export default function MasterData() {
         if (editId) await departments.update(editId, entry);
         else await departments.add(entry);
       }
+      if (tab === 'vendors') {
+        const entry: Vendor = {
+          id: editId || `VND${String(Date.now()).slice(-5)}`,
+          name: form.name || '', username: form.username || '',
+          email: form.email || '', contact: form.contact || '', address: form.address || '',
+          rating: parseFloat(form.rating) || 5.0, distance: form.distance || '1.0 km',
+          deliveryTime: form.deliveryTime || '20-30 min',
+          status: (form.status as Vendor['status']) || 'Active'
+        };
+        if (editId) await vendors.update(editId, entry);
+        else await vendors.add(entry);
+      }
       toast.success(editId ? 'Updated' : 'Created', `Record ${editId ? 'updated' : 'created'} successfully`);
       setShowModal(false);
     } catch {
@@ -127,6 +143,8 @@ export default function MasterData() {
       { key: 'contact', label: 'Contact' }, { key: 'email', label: 'Email', type: 'email' },
       { key: 'experience', label: 'Experience (years)', type: 'number' }, { key: 'department', label: 'Department' },
       { key: 'availability', label: 'Availability' },
+      { key: 'licenseNo', label: 'License Number' },
+      { key: 'licenseValidity', label: 'License Validity' },
       { key: 'status', label: 'Status', options: ['Available', 'On Leave', 'Busy'] }
     ];
     if (tab === 'staff') return [
@@ -135,9 +153,16 @@ export default function MasterData() {
       { key: 'email', label: 'Email', type: 'email' },
       { key: 'status', label: 'Status', options: ['Active', 'Inactive'] }
     ];
-    return [
+    if (tab === 'departments') return [
       { key: 'name', label: 'Department Name' }, { key: 'head', label: 'Head Doctor' },
       { key: 'staffCount', label: 'Staff Count', type: 'number' }, { key: 'location', label: 'Location' },
+      { key: 'status', label: 'Status', options: ['Active', 'Inactive'] }
+    ];
+    return [
+      { key: 'name', label: 'Pharmacy Name' }, { key: 'username', label: 'Username' },
+      { key: 'email', label: 'Email', type: 'email' }, { key: 'contact', label: 'Contact Number' },
+      { key: 'address', label: 'Address' }, { key: 'distance', label: 'Mock Distance' },
+      { key: 'deliveryTime', label: 'Delivery Time' },
       { key: 'status', label: 'Status', options: ['Active', 'Inactive'] }
     ];
   };
@@ -146,7 +171,8 @@ export default function MasterData() {
     if (tab === 'patients') return ['ID', 'Name', 'Age', 'Gender', 'Contact', 'Blood Group', 'Status', 'Actions'];
     if (tab === 'doctors') return ['ID', 'Name', 'Specialization', 'Department', 'Experience', 'Status', 'Actions'];
     if (tab === 'staff') return ['ID', 'Name', 'Role', 'Department', 'Contact', 'Status', 'Actions'];
-    return ['ID', 'Name', 'Head', 'Staff Count', 'Location', 'Status', 'Actions'];
+    if (tab === 'departments') return ['ID', 'Name', 'Head', 'Staff Count', 'Location', 'Status', 'Actions'];
+    return ['ID', 'Pharmacy Name', 'Username', 'Contact', 'Distance', 'Delivery Time', 'Status', 'Actions'];
   };
 
   const renderRow = (item: any, i: number) => {
@@ -177,8 +203,12 @@ export default function MasterData() {
       const s = item as Staff;
       return <tr key={i} className="table-row-animate" style={{ animationDelay: `${i * 0.03}s` }}><td className="td-mono">{s.id}</td><td style={{fontWeight:600,color:'var(--text-primary)'}}>{s.name}</td><td>{s.role}</td><td>{s.department}</td><td>{s.contact}</td><td><span className={`status-badge ${status}`}>{s.status}</span></td><td><ActionButtons /></td></tr>;
     }
-    const dep = item as Department;
-    return <tr key={i} className="table-row-animate" style={{ animationDelay: `${i * 0.03}s` }}><td className="td-mono">{dep.id}</td><td style={{fontWeight:600,color:'var(--text-primary)'}}>{dep.name}</td><td>{dep.head}</td><td>{dep.staffCount}</td><td>{dep.location}</td><td><span className={`status-badge ${status}`}>{dep.status}</span></td><td><ActionButtons /></td></tr>;
+    if (tab === 'departments') {
+      const dep = item as Department;
+      return <tr key={i} className="table-row-animate" style={{ animationDelay: `${i * 0.03}s` }}><td className="td-mono">{dep.id}</td><td style={{fontWeight:600,color:'var(--text-primary)'}}>{dep.name}</td><td>{dep.head}</td><td>{dep.staffCount}</td><td>{dep.location}</td><td><span className={`status-badge ${status}`}>{dep.status}</span></td><td><ActionButtons /></td></tr>;
+    }
+    const v = item as Vendor;
+    return <tr key={i} className="table-row-animate" style={{ animationDelay: `${i * 0.03}s` }}><td className="td-mono">{v.id}</td><td style={{fontWeight:600,color:'var(--text-primary)'}}>{v.name}</td><td>{v.username}</td><td>{v.contact}</td><td>{v.distance}</td><td>{v.deliveryTime}</td><td><span className={`status-badge ${status}`}>{v.status}</span></td><td><ActionButtons /></td></tr>;
   };
 
   return (

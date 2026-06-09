@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Calendar, IndianRupee, UserCheck, TrendingUp, Clock, Database, ArrowRightLeft, Wifi, Shield, Zap } from 'lucide-react';
+import { Users, Calendar, IndianRupee, UserCheck, TrendingUp, Clock, Database, ArrowRightLeft, Wifi, Shield, Zap, Truck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { db } from '../services/realtimeDb';
@@ -12,6 +12,7 @@ import { hasPermission } from '../services/permissions';
 import type { Role } from '../services/permissions';
 import DoctorDashboard from './DoctorDashboard';
 import PatientDashboard from './PatientDashboard';
+import VendorDashboard from './VendorDashboard';
 
 export default function DashboardHome() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export default function DashboardHome() {
   // ── Role-specific portals ──────────────────────────────────────────────────
   if (user?.role === 'Doctor')  return <DoctorDashboard />;
   if (user?.role === 'Patient') return <PatientDashboard />;
+  if (user?.role === 'Vendor')  return <VendorDashboard />;
   // Staff and Admin fall through to the full admin overview below
 
   return <AdminDashboardContent />;
@@ -42,6 +44,17 @@ function AdminDashboardContent() {
   const [livePatientCount, setLivePatientCount] = useState(247);
   const [connectionStatus, setConnectionStatus] = useState('connected');
   const [hoveredStat, setHoveredStat] = useState<number | null>(null);
+  const [deliveryAnalytics, setDeliveryAnalytics] = useState<any>({
+    total_deliveries: 145,
+    successful_deliveries: 141,
+    delayed_deliveries: 4,
+    average_delivery_time: 16.8,
+    vendor_performance: [
+      { vendor_name: "Metro Pharmacy", total_deliveries: 62, avg_time: "15.4 min", fulfillment_rate: "98.4%", status: "Excellent" },
+      { vendor_name: "City Care Chemists", total_deliveries: 48, avg_time: "21.2 min", fulfillment_rate: "95.5%", status: "Good" },
+      { vendor_name: "Apollo Pharmacy Express", total_deliveries: 35, avg_time: "11.8 min", fulfillment_rate: "99.2%", status: "Excellent" }
+    ]
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -51,6 +64,21 @@ function AdminDashboardContent() {
       } catch {
         // Backend offline → keep MOCK_STATS already set
         setStats(MOCK_STATS);
+      }
+      
+      try {
+        const dRes = await fetch('/api/delivery/analytics', {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(localStorage.getItem('hp_auth_token') ? { 'Authorization': `Bearer ${localStorage.getItem('hp_auth_token')}` } : {})
+          }
+        });
+        const dData = await dRes.json();
+        if (dData?.data) {
+          setDeliveryAnalytics(dData.data);
+        }
+      } catch {
+        // keep mock defaults
       }
       setLoading(false);
     };
@@ -193,6 +221,75 @@ function AdminDashboardContent() {
             <div className="card-arrow">→</div>
           </div>
         )}
+      </div>
+
+      {/* 🚚 Medicine Delivery Operations Analytics Section */}
+      <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <h2 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Truck size={20} color="var(--accent-primary)" />
+          Medicine Delivery Operations Analytics
+        </h2>
+
+        {/* Analytics mini cards grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          {[
+            { label: 'Total Deliveries', value: deliveryAnalytics.total_deliveries, change: 'All-time orders', color: '#0ea5e9', bg: 'rgba(14,165,233,0.1)' },
+            { label: 'Successful Deliveries', value: deliveryAnalytics.successful_deliveries, change: 'Delivered successfully', color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+            { label: 'Delayed Deliveries', value: deliveryAnalytics.delayed_deliveries, change: 'Requires optimization', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
+            { label: 'Avg Delivery Time', value: `${deliveryAnalytics.average_delivery_time} mins`, change: 'Store-to-door average', color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' }
+          ].map((item, idx) => (
+            <div key={idx} className="glass-card hover-lift" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.label}</span>
+                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0' }}>{item.value}</div>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{item.change}</span>
+              </div>
+              <div style={{ width: 42, height: 42, borderRadius: 10, background: item.bg, color: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Truck size={18} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Vendor Performance Grid */}
+        <div className="glass-card" style={{ padding: 20 }}>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: 12 }}>📈 Vendor Performance Metrics</h3>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Vendor Name</th>
+                  <th>Total Deliveries</th>
+                  <th>Avg. Delivery Time</th>
+                  <th>Fulfillment Rate</th>
+                  <th>Status Rating</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deliveryAnalytics.vendor_performance?.map((vendor: any, idx: number) => (
+                  <tr key={idx}>
+                    <td><strong style={{ color: 'var(--text-primary)' }}>{vendor.vendor_name || vendor.vendorName}</strong></td>
+                    <td>{vendor.total_deliveries || vendor.totalDeliveries}</td>
+                    <td>{vendor.avg_time || vendor.avgTime}</td>
+                    <td><strong style={{ color: 'var(--accent-primary)' }}>{vendor.fulfillment_rate || vendor.fulfillmentRate}</strong></td>
+                    <td>
+                      <span className="badge" style={{ 
+                        background: (vendor.status === 'Excellent' || vendor.status === 'Active') ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', 
+                        color: (vendor.status === 'Excellent' || vendor.status === 'Active') ? '#10b981' : '#f59e0b',
+                        padding: '2px 8px',
+                        borderRadius: 20,
+                        fontWeight: 600,
+                        fontSize: '0.72rem'
+                      }}>
+                        {vendor.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* Live Dashboard Grid */}

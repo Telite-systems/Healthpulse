@@ -17,6 +17,11 @@ class DoctorModel(MongoBaseModel):
     department: str
     availability: str
     status: Literal["Available", "On Leave", "Busy"] = "Available"
+    licenseNo: Optional[str] = None
+    licenseValidity: Optional[str] = None
+    qualification: Optional[str] = None
+    consultationFee: Optional[int] = None
+    gender: Optional[str] = None
 
 
 class DoctorCreate(BaseModel):
@@ -30,6 +35,11 @@ class DoctorCreate(BaseModel):
     department: str
     availability: str
     status: Literal["Available", "On Leave", "Busy"] = "Available"
+    licenseNo: Optional[str] = None
+    licenseValidity: Optional[str] = None
+    qualification: Optional[str] = None
+    consultationFee: Optional[int] = None
+    gender: Optional[str] = None
 
 
 class DoctorUpdate(BaseModel):
@@ -42,3 +52,8 @@ class DoctorUpdate(BaseModel):
     department: Optional[str] = None
     availability: Optional[str] = None
     status: Optional[Literal["Available", "On Leave", "Busy"]] = None
+    licenseNo: Optional[str] = None
+    licenseValidity: Optional[str] = None
+    qualification: Optional[str] = None
+    consultationFee: Optional[int] = None
+    gender: Optional[str] = None

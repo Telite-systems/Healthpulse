@@ -65,6 +65,8 @@ async def login(credentials: UserLogin):
         "name": user["name"],
         "role": user["role"],
         "avatar": user.get("avatar", "👤"),
+        "department": user.get("department", ""),
+        "specialization": user.get("specialization", ""),
     }
 
     return {

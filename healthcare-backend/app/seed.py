@@ -23,26 +23,35 @@ async def seed_database():
 
     # ─── Users ───────────────────────────────────────────────────────────────
     users_col = database.get_collection("users")
-    if await users_col.count_documents({}) == 0:
-        users = [
-            {"_id": "U001", "username": "admin",  "hashed_password": hash_password("admin123"),  "name": "Dr. Admin Singh",     "role": "Admin",  "avatar": "🛡️",  "department": "Administration"},
-            {"_id": "U002", "username": "doctor", "hashed_password": hash_password("doctor123"), "name": "Dr. Rajesh Kumar",    "role": "Doctor", "avatar": "👨‍⚕️", "department": "Cardiology",  "specialization": "Cardiologist"},
-            {"_id": "U003", "username": "staff",  "hashed_password": hash_password("staff123"),  "name": "Priya Receptionist",  "role": "Staff",  "avatar": "👩‍💼", "department": "Reception"},
-            # Seed all additional doctor credentials to allow logging in via backend API
-            {"_id": "U004", "username": "priya",  "hashed_password": hash_password("doctor123"), "name": "Dr. Priya Sharma",    "role": "Doctor", "avatar": "👩‍⚕️", "department": "Endocrinology", "specialization": "Endocrinology"},
-            {"_id": "U005", "username": "amit",   "hashed_password": hash_password("doctor123"), "name": "Dr. Amit Singh",      "role": "Doctor", "avatar": "👨‍⚕️", "department": "Orthopedics",  "specialization": "Orthopedics"},
-            {"_id": "U006", "username": "kavita", "hashed_password": hash_password("doctor123"), "name": "Dr. Kavita Negi",     "role": "Doctor", "avatar": "👩‍⚕️", "department": "Dermatology",  "specialization": "Dermatology"},
-            {"_id": "U007", "username": "sunil",  "hashed_password": hash_password("doctor123"), "name": "Dr. Sunil Verma",     "role": "Doctor", "avatar": "👨‍⚕️", "department": "Neurology",    "specialization": "Neurology"},
-            {"_id": "U008", "username": "meena",  "hashed_password": hash_password("doctor123"), "name": "Dr. Meena Agarwal",   "role": "Doctor", "avatar": "👩‍⚕️", "department": "Pediatrics",   "specialization": "Pediatrics"},
-            {"_id": "U009", "username": "rahul",  "hashed_password": hash_password("doctor123"), "name": "Dr. Rahul Gupta",     "role": "Doctor", "avatar": "👨‍⚕️", "department": "Surgery",      "specialization": "General Surgery"},
-            {"_id": "U010", "username": "anita",  "hashed_password": hash_password("doctor123"), "name": "Dr. Anita Malhotra",  "role": "Doctor", "avatar": "👩‍⚕️", "department": "Gynecology",   "specialization": "Gynecology"},
-            {"_id": "U011", "username": "vijay",  "hashed_password": hash_password("doctor123"), "name": "Dr. Vijay Rao",       "role": "Doctor", "avatar": "👨‍⚕️", "department": "Radiology",    "specialization": "Radiology"},
-            {"_id": "U012", "username": "ritu",   "hashed_password": hash_password("doctor123"), "name": "Dr. Ritu Joshi",      "role": "Doctor", "avatar": "👩‍⚕️", "department": "Ophthalmology", "specialization": "Ophthalmology"},
-            {"_id": "U013", "username": "arun",   "hashed_password": hash_password("doctor123"), "name": "Dr. Arun Mishra",     "role": "Doctor", "avatar": "👨‍⚕️", "department": "Pulmonology",  "specialization": "Pulmonology"},
-            {"_id": "U014", "username": "pooja",  "hashed_password": hash_password("doctor123"), "name": "Dr. Pooja Sinha",     "role": "Doctor", "avatar": "👩‍⚕️", "department": "Psychiatry",   "specialization": "Psychiatry"},
-        ]
-        await users_col.insert_many(users)
-        logger.info(f"  ✅ Seeded {len(users)} users")
+    users = [
+        {"_id": "U001", "username": "admin",  "hashed_password": hash_password("admin123"),  "name": "Dr. Admin Singh",     "role": "Admin",  "avatar": "🛡️",  "department": "Administration"},
+        {"_id": "U002", "username": "doctor", "hashed_password": hash_password("doctor123"), "name": "Dr. Rajesh Kumar",    "role": "Doctor", "avatar": "👨‍⚕️", "department": "Cardiology",  "specialization": "Cardiologist"},
+        {"_id": "U003", "username": "staff",  "hashed_password": hash_password("staff123"),  "name": "Priya Receptionist",  "role": "Staff",  "avatar": "👩‍💼", "department": "Reception"},
+        # Seed all additional doctor credentials to allow logging in via backend API
+        {"_id": "U004", "username": "priya",  "hashed_password": hash_password("doctor123"), "name": "Dr. Priya Sharma",    "role": "Doctor", "avatar": "👩‍⚕️", "department": "Endocrinology", "specialization": "Endocrinology"},
+        {"_id": "U005", "username": "amit",   "hashed_password": hash_password("doctor123"), "name": "Dr. Amit Singh",      "role": "Doctor", "avatar": "👨‍⚕️", "department": "Orthopedics",  "specialization": "Orthopedics"},
+        {"_id": "U006", "username": "kavita", "hashed_password": hash_password("doctor123"), "name": "Dr. Kavita Negi",     "role": "Doctor", "avatar": "👩‍⚕️", "department": "Dermatology",  "specialization": "Dermatology"},
+        {"_id": "U007", "username": "sunil",  "hashed_password": hash_password("doctor123"), "name": "Dr. Sunil Verma",     "role": "Doctor", "avatar": "👨‍⚕️", "department": "Neurology",    "specialization": "Neurology"},
+        {"_id": "U008", "username": "meena",  "hashed_password": hash_password("doctor123"), "name": "Dr. Meena Agarwal",   "role": "Doctor", "avatar": "👩‍⚕️", "department": "Pediatrics",   "specialization": "Pediatrics"},
+        {"_id": "U009", "username": "rahul",  "hashed_password": hash_password("doctor123"), "name": "Dr. Rahul Gupta",     "role": "Doctor", "avatar": "👨‍⚕️", "department": "Surgery",      "specialization": "General Surgery"},
+        {"_id": "U010", "username": "anita",  "hashed_password": hash_password("doctor123"), "name": "Dr. Anita Malhotra",  "role": "Doctor", "avatar": "👩‍⚕️", "department": "Gynecology",   "specialization": "Gynecology"},
+        {"_id": "U011", "username": "vijay",  "hashed_password": hash_password("doctor123"), "name": "Dr. Vijay Rao",       "role": "Doctor", "avatar": "👨‍⚕️", "department": "Radiology",    "specialization": "Radiology"},
+        {"_id": "U012", "username": "ritu",   "hashed_password": hash_password("doctor123"), "name": "Dr. Ritu Joshi",      "role": "Doctor", "avatar": "👩‍⚕️", "department": "Ophthalmology", "specialization": "Ophthalmology"},
+        {"_id": "U013", "username": "arun",   "hashed_password": hash_password("doctor123"), "name": "Dr. Arun Mishra",     "role": "Doctor", "avatar": "👨‍⚕️", "department": "Pulmonology",  "specialization": "Pulmonology"},
+        {"_id": "U014", "username": "pooja",  "hashed_password": hash_password("doctor123"), "name": "Dr. Pooja Sinha",     "role": "Doctor", "avatar": "👩‍⚕️", "department": "Psychiatry",   "specialization": "Psychiatry"},
+        {"_id": "V001", "username": "vendor", "hashed_password": hash_password("vendor123"), "name": "Metro Pharmacy",      "role": "Vendor", "avatar": "💊"},
+        {"_id": "V002", "username": "citycare", "hashed_password": hash_password("vendor123"), "name": "City Care Chemists", "role": "Vendor", "avatar": "💊"},
+        {"_id": "V003", "username": "apollo", "hashed_password": hash_password("vendor123"), "name": "Apollo Pharmacy Express", "role": "Vendor", "avatar": "💊"},
+    ]
+    inserted_count = 0
+    for u in users:
+        existing = await users_col.find_one({"username": u["username"]})
+        if not existing:
+            await users_col.insert_one(u)
+            inserted_count += 1
+    if inserted_count > 0:
+        logger.info(f"  ✅ Seeded {inserted_count} new users")
+
 
     # ─── Patients (20 records) ────────────────────────────────────────────────
     patients_col = database.get_collection("patients")
@@ -76,18 +85,18 @@ async def seed_database():
     doctors_col = database.get_collection("doctors")
     if await doctors_col.count_documents({}) == 0:
         doctors = [
-            {"_id": "D001", "name": "Dr. Rajesh Kumar",    "specialization": "Cardiology",        "contact": "+91-9811001001", "email": "rajesh.kumar@hospital.com",    "experience": 18, "department": "Cardiology",        "availability": "Mon-Fri 9AM-5PM",  "status": "Available", "qualification": "MD, DM Cardiology",    "consultationFee": 800},
-            {"_id": "D002", "name": "Dr. Priya Sharma",    "specialization": "Endocrinology",     "contact": "+91-9811001002", "email": "priya.sharma@hospital.com",    "experience": 14, "department": "Endocrinology",     "availability": "Mon-Sat 10AM-6PM", "status": "Available", "qualification": "MD Medicine, DM Endocrinology", "consultationFee": 700},
-            {"_id": "D003", "name": "Dr. Amit Singh",      "specialization": "Orthopedics",       "contact": "+91-9811001003", "email": "amit.singh@hospital.com",      "experience": 22, "department": "Orthopedics",       "availability": "Tue-Sat 8AM-4PM",  "status": "Busy",      "qualification": "MS Orthopedics, FRCS", "consultationFee": 900},
-            {"_id": "D004", "name": "Dr. Kavita Negi",     "specialization": "Dermatology",       "contact": "+91-9811001004", "email": "kavita.negi@hospital.com",     "experience": 11, "department": "Dermatology",       "availability": "Mon-Thu 10AM-5PM", "status": "Available", "qualification": "MD Dermatology",       "consultationFee": 600},
-            {"_id": "D005", "name": "Dr. Sunil Verma",     "specialization": "Neurology",         "contact": "+91-9811001005", "email": "sunil.verma@hospital.com",     "experience": 16, "department": "Neurology",         "availability": "Mon-Fri 9AM-3PM",  "status": "Available", "qualification": "MD, DM Neurology",     "consultationFee": 850},
-            {"_id": "D006", "name": "Dr. Meena Agarwal",   "specialization": "Pediatrics",        "contact": "+91-9811001006", "email": "meena.agarwal@hospital.com",   "experience": 13, "department": "Pediatrics",        "availability": "Mon-Sat 9AM-5PM",  "status": "Available", "qualification": "MD Pediatrics, DCH",   "consultationFee": 650},
-            {"_id": "D007", "name": "Dr. Rahul Gupta",     "specialization": "General Surgery",   "contact": "+91-9811001007", "email": "rahul.gupta@hospital.com",     "experience": 20, "department": "Surgery",           "availability": "Mon-Fri 7AM-3PM",  "status": "Available", "qualification": "MS Surgery, MCh",     "consultationFee": 1000},
-            {"_id": "D008", "name": "Dr. Anita Malhotra",  "specialization": "Gynecology",        "contact": "+91-9811001008", "email": "anita.malhotra@hospital.com",  "experience": 17, "department": "Gynecology",        "availability": "Mon-Sat 10AM-6PM", "status": "Available", "qualification": "MS OBG, FRCOG",       "consultationFee": 750},
-            {"_id": "D009", "name": "Dr. Vijay Rao",       "specialization": "Radiology",         "contact": "+91-9811001009", "email": "vijay.rao@hospital.com",       "experience": 15, "department": "Radiology",         "availability": "Mon-Fri 8AM-4PM",  "status": "On Leave",  "qualification": "MD Radiology, DMRE",  "consultationFee": 500},
-            {"_id": "D010", "name": "Dr. Ritu Joshi",      "specialization": "Ophthalmology",     "contact": "+91-9811001010", "email": "ritu.joshi@hospital.com",      "experience": 9,  "department": "Ophthalmology",     "availability": "Tue-Sat 9AM-5PM",  "status": "Available", "qualification": "MS Ophthalmology",    "consultationFee": 600},
-            {"_id": "D011", "name": "Dr. Arun Mishra",     "specialization": "Pulmonology",       "contact": "+91-9811001011", "email": "arun.mishra@hospital.com",     "experience": 12, "department": "Pulmonology",       "availability": "Mon-Fri 9AM-5PM",  "status": "Available", "qualification": "MD Pulmonology",      "consultationFee": 700},
-            {"_id": "D012", "name": "Dr. Pooja Sinha",     "specialization": "Psychiatry",        "contact": "+91-9811001012", "email": "pooja.sinha@hospital.com",     "experience": 10, "department": "Psychiatry",        "availability": "Mon-Thu 10AM-4PM", "status": "Available", "qualification": "MD Psychiatry, DPM",  "consultationFee": 650},
+            {"_id": "D001", "name": "Dr. Rajesh Kumar",    "specialization": "Cardiology",        "contact": "+91-9811001001", "email": "rajesh.kumar@hospital.com",    "experience": 18, "department": "Cardiology",        "availability": "Mon-Fri 9AM-5PM",  "status": "Available", "qualification": "MD, DM Cardiology",    "consultationFee": 800, "licenseNo": "MC-10023", "licenseValidity": "2030-12-31"},
+            {"_id": "D002", "name": "Dr. Priya Sharma",    "specialization": "Endocrinology",     "contact": "+91-9811001002", "email": "priya.sharma@hospital.com",    "experience": 14, "department": "Endocrinology",     "availability": "Mon-Sat 10AM-6PM", "status": "Available", "qualification": "MD Medicine, DM Endocrinology", "consultationFee": 700, "licenseNo": "MC-20412", "licenseValidity": "2029-06-30"},
+            {"_id": "D003", "name": "Dr. Amit Singh",      "specialization": "Orthopedics",       "contact": "+91-9811001003", "email": "amit.singh@hospital.com",      "experience": 22, "department": "Orthopedics",       "availability": "Tue-Sat 8AM-4PM",  "status": "Busy",      "qualification": "MS Orthopedics, FRCS", "consultationFee": 900, "licenseNo": "MC-30114", "licenseValidity": "2028-10-15"},
+            {"_id": "D004", "name": "Dr. Kavita Negi",     "specialization": "Dermatology",       "contact": "+91-9811001004", "email": "kavita.negi@hospital.com",     "experience": 11, "department": "Dermatology",       "availability": "Mon-Thu 10AM-5PM", "status": "Available", "qualification": "MD Dermatology",       "consultationFee": 600, "licenseNo": "MC-40992", "licenseValidity": "2031-03-31"},
+            {"_id": "D005", "name": "Dr. Sunil Verma",     "specialization": "Neurology",         "contact": "+91-9811001005", "email": "sunil.verma@hospital.com",     "experience": 16, "department": "Neurology",         "availability": "Mon-Fri 9AM-3PM",  "status": "Available", "qualification": "MD, DM Neurology",     "consultationFee": 850, "licenseNo": "MC-50771", "licenseValidity": "2029-11-30"},
+            {"_id": "D006", "name": "Dr. Meena Agarwal",   "specialization": "Pediatrics",        "contact": "+91-9811001006", "email": "meena.agarwal@hospital.com",   "experience": 13, "department": "Pediatrics",        "availability": "Mon-Sat 9AM-5PM",  "status": "Available", "qualification": "MD Pediatrics, DCH",   "consultationFee": 650, "licenseNo": "MC-60234", "licenseValidity": "2030-05-15"},
+            {"_id": "D007", "name": "Dr. Rahul Gupta",     "specialization": "General Surgery",   "contact": "+91-9811001007", "email": "rahul.gupta@hospital.com",     "experience": 20, "department": "Surgery",           "availability": "Mon-Fri 7AM-3PM",  "status": "Available", "qualification": "MS Surgery, MCh",     "consultationFee": 1000, "licenseNo": "MC-70119", "licenseValidity": "2032-04-20"},
+            {"_id": "D008", "name": "Dr. Anita Malhotra",  "specialization": "Gynecology",        "contact": "+91-9811001008", "email": "anita.malhotra@hospital.com",  "experience": 17, "department": "Gynecology",        "availability": "Mon-Sat 10AM-6PM", "status": "Available", "qualification": "MS OBG, FRCOG",       "consultationFee": 750, "licenseNo": "MC-80554", "licenseValidity": "2029-08-31"},
+            {"_id": "D009", "name": "Dr. Vijay Rao",       "specialization": "Radiology",         "contact": "+91-9811001009", "email": "vijay.rao@hospital.com",       "experience": 15, "department": "Radiology",         "availability": "Mon-Fri 8AM-4PM",  "status": "On Leave",  "qualification": "MD Radiology, DMRE",  "consultationFee": 500, "licenseNo": "MC-90881", "licenseValidity": "2028-12-31"},
+            {"_id": "D010", "name": "Dr. Ritu Joshi",      "specialization": "Ophthalmology",     "contact": "+91-9811001010", "email": "ritu.joshi@hospital.com",      "experience": 9,  "department": "Ophthalmology",     "availability": "Tue-Sat 9AM-5PM",  "status": "Available", "qualification": "MS Ophthalmology",    "consultationFee": 600, "licenseNo": "MC-11005", "licenseValidity": "2031-07-31"},
+            {"_id": "D011", "name": "Dr. Arun Mishra",     "specialization": "Pulmonology",       "contact": "+91-9811001011", "email": "arun.mishra@hospital.com",     "experience": 12, "department": "Pulmonology",       "availability": "Mon-Fri 9AM-5PM",  "status": "Available", "qualification": "MD Pulmonology",      "consultationFee": 700, "licenseNo": "MC-12006", "licenseValidity": "2030-01-31"},
+            {"_id": "D012", "name": "Dr. Pooja Sinha",     "specialization": "Psychiatry",        "contact": "+91-9811001012", "email": "pooja.sinha@hospital.com",     "experience": 10, "department": "Psychiatry",        "availability": "Mon-Thu 10AM-4PM", "status": "Available", "qualification": "MD Psychiatry, DPM",  "consultationFee": 650, "licenseNo": "MC-13007", "licenseValidity": "2032-09-30"},
         ]
         await doctors_col.insert_many(doctors)
         logger.info("  ✅ Seeded 12 doctors")
@@ -220,5 +229,41 @@ async def seed_database():
         ]
         await notifications_col.insert_many(notifications)
         logger.info("  ✅ Seeded 8 notifications")
+
+    # ─── Vendors ──────────────────────────────────────────────────────────────
+    vendors_col = database.get_collection("vendors")
+    if await vendors_col.count_documents({}) == 0:
+        vendors = [
+            {"_id": "V001", "name": "Metro Pharmacy", "username": "vendor", "email": "metro.pharmacy@healthpulse.com", "contact": "+91-9988776655", "address": "Block C, Metro Plaza, New Delhi", "rating": 4.8, "distance": "1.2 km", "deliveryTime": "15-25 min", "status": "Active"},
+            {"_id": "V002", "name": "City Care Chemists", "username": "citycare", "email": "citycare@healthpulse.com", "contact": "+91-9988776644", "address": "Shop 12, City Market, New Delhi", "rating": 4.5, "distance": "2.4 km", "deliveryTime": "20-30 min", "status": "Active"},
+            {"_id": "V003", "name": "Apollo Pharmacy Express", "username": "apollo", "email": "apollo.express@healthpulse.com", "contact": "+91-9988776633", "address": "15 Ring Road, New Delhi", "rating": 4.9, "distance": "0.8 km", "deliveryTime": "10-15 min", "status": "Active"},
+        ]
+        await vendors_col.insert_many(vendors)
+        logger.info(f"  ✅ Seeded {len(vendors)} vendors")
+
+    # ─── Inventory ────────────────────────────────────────────────────────────
+    inventory_col = database.get_collection("inventory")
+    if await inventory_col.count_documents({}) == 0:
+        inventory = [
+            # Metro Pharmacy Stock
+            {"_id": "I001", "vendorId": "V001", "medicineName": "Amlodipine 5mg", "sku": "AML-005", "quantity": 150, "expiryDate": "2027-12-31", "price": 8.50, "manufacturer": "Sun Pharma", "category": "Cardiovascular", "description": "Used to treat high blood pressure and chest pain (angina).", "dosageInfo": "Take 1 tablet daily or as directed by physician.", "isPrescriptionRequired": True},
+            {"_id": "I002", "vendorId": "V001", "medicineName": "Aspirin 75mg", "sku": "ASP-075", "quantity": 200, "expiryDate": "2027-06-30", "price": 4.20, "manufacturer": "Bayer", "category": "Analgesic", "description": "Antiplatelet medicine used to prevent blood clots.", "dosageInfo": "Take 1 tablet daily after main meal.", "isPrescriptionRequired": False},
+            {"_id": "I003", "vendorId": "V001", "medicineName": "Rosuvastatin 10mg", "sku": "ROS-010", "quantity": 120, "expiryDate": "2027-09-30", "price": 14.50, "manufacturer": "Cipla", "category": "Cardiovascular", "description": "Statin medication used to lower bad cholesterol.", "dosageInfo": "Take 1 tablet at night.", "isPrescriptionRequired": True},
+            {"_id": "I004", "vendorId": "V001", "medicineName": "Levothyroxine 50mcg", "sku": "LEV-050", "quantity": 15, "expiryDate": "2026-08-31", "price": 9.00, "manufacturer": "Abbott", "category": "Thyroid", "description": "Hormone replacement for underactive thyroid glands.", "dosageInfo": "Take 1 tablet on an empty stomach in the morning.", "isPrescriptionRequired": True},
+            {"_id": "I005", "vendorId": "V001", "medicineName": "Vitamin D3 60K IU", "sku": "VIT-D3", "quantity": 80, "expiryDate": "2026-07-31", "price": 25.00, "manufacturer": "Cadila", "category": "Vitamins", "description": "Essential vitamin for calcium absorption and bone health.", "dosageInfo": "Take 1 capsule weekly with milk.", "isPrescriptionRequired": False},
+            
+            # City Care Stock
+            {"_id": "I006", "vendorId": "V002", "medicineName": "Amlodipine 5mg", "sku": "AML-005", "quantity": 100, "expiryDate": "2027-12-31", "price": 9.00, "manufacturer": "Sun Pharma", "category": "Cardiovascular", "description": "Used to treat high blood pressure and chest pain (angina).", "dosageInfo": "Take 1 tablet daily or as directed by physician.", "isPrescriptionRequired": True},
+            {"_id": "I007", "vendorId": "V002", "medicineName": "Aspirin 75mg", "sku": "ASP-075", "quantity": 180, "expiryDate": "2027-06-30", "price": 4.50, "manufacturer": "Bayer", "category": "Analgesic", "description": "Antiplatelet medicine used to prevent blood clots.", "dosageInfo": "Take 1 tablet daily after main meal.", "isPrescriptionRequired": False},
+            {"_id": "I008", "vendorId": "V002", "medicineName": "Metformin 500mg", "sku": "MET-500", "quantity": 300, "expiryDate": "2028-03-31", "price": 6.00, "manufacturer": "Cipla", "category": "Diabetes", "description": "Oral diabetes medicine that helps control blood sugar levels.", "dosageInfo": "Take 1 tablet twice daily with meals.", "isPrescriptionRequired": True},
+            {"_id": "I009", "vendorId": "V002", "medicineName": "Glimepiride 2mg", "sku": "GLI-002", "quantity": 90, "expiryDate": "2027-11-30", "price": 11.20, "manufacturer": "Sandoz", "category": "Diabetes", "description": "Stimulates insulin release to manage type 2 diabetes.", "dosageInfo": "Take 1 tablet with breakfast.", "isPrescriptionRequired": True},
+            
+            # Apollo Express Stock
+            {"_id": "I010", "vendorId": "V003", "medicineName": "Amlodipine 5mg", "sku": "AML-005", "quantity": 250, "expiryDate": "2027-12-31", "price": 8.00, "manufacturer": "Sun Pharma", "category": "Cardiovascular", "description": "Used to treat high blood pressure and chest pain (angina).", "dosageInfo": "Take 1 tablet daily or as directed by physician.", "isPrescriptionRequired": True},
+            {"_id": "I011", "vendorId": "V003", "medicineName": "Vitamin D3 60K IU", "sku": "VIT-D3", "quantity": 150, "expiryDate": "2026-07-31", "price": 24.00, "manufacturer": "Cadila", "category": "Vitamins", "description": "Essential vitamin for calcium absorption and bone health.", "dosageInfo": "Take 1 capsule weekly with milk.", "isPrescriptionRequired": False},
+            {"_id": "I012", "vendorId": "V003", "medicineName": "Diclofenac 75mg", "sku": "DIC-075", "quantity": 200, "expiryDate": "2027-10-31", "price": 7.50, "manufacturer": "Novartis", "category": "Analgesic", "description": "NSAID pain reliever for joint pain and swelling.", "dosageInfo": "Take 1 tablet after food as needed.", "isPrescriptionRequired": False},
+        ]
+        await inventory_col.insert_many(inventory)
+        logger.info(f"  ✅ Seeded {len(inventory)} inventory items")
 
     logger.info("🌱 Database seeding complete!")
