@@ -8,10 +8,13 @@ from app.models.visit import PatientVisitModel
 from app.models.billing import BillingModel
 from app.models.prescription import PrescriptionModel
 from app.models.notification import NotificationModel
+from app.models.followup import FollowUpCreate
 
 __all__ = [
     "UserModel", "UserInDB",
     "PatientModel", "DoctorModel", "StaffModel",
     "DepartmentModel", "AppointmentModel", "PatientVisitModel",
     "BillingModel", "PrescriptionModel", "NotificationModel",
+    "FollowUpCreate",
 ]
+

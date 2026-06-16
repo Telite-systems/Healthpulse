@@ -150,6 +150,7 @@ class CRUDService:
             "prescriptions": "RX",
             "notifications": "N",
             "users": "U",
+            "followups": "FU",
         }
         prefix = prefix_map.get(self.collection_name, "DOC")
         count = await self.collection.count_documents({})
@@ -166,3 +167,5 @@ visits_service = CRUDService("visits")
 billing_service = CRUDService("billing")
 prescriptions_service = CRUDService("prescriptions")
 notifications_service = CRUDService("notifications")
+followups_service = CRUDService("followups")
+

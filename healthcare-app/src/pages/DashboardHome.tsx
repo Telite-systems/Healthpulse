@@ -12,6 +12,7 @@ import { hasPermission } from '../services/permissions';
 import type { Role } from '../services/permissions';
 import DoctorDashboard from './DoctorDashboard';
 import PatientDashboard from './PatientDashboard';
+import { followupApi } from '../services/followupApi';
 
 export default function DashboardHome() {
   const { user } = useAuth();
@@ -42,14 +43,24 @@ function AdminDashboardContent() {
   const [livePatientCount, setLivePatientCount] = useState(247);
   const [connectionStatus, setConnectionStatus] = useState('connected');
   const [hoveredStat, setHoveredStat] = useState<number | null>(null);
+  const [followUpStats, setFollowUpStats] = useState<any>(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await api.getDashboardStats();
-        setStats(res.data);
+        const [statsRes, fuRes] = await Promise.allSettled([
+          api.getDashboardStats(),
+          followupApi.getAnalytics()
+        ]);
+        if (statsRes.status === 'fulfilled') {
+          setStats(statsRes.value.data);
+        } else {
+          setStats(MOCK_STATS);
+        }
+        if (fuRes.status === 'fulfilled') {
+          setFollowUpStats(fuRes.value.data);
+        }
       } catch {
-        // Backend offline → keep MOCK_STATS already set
         setStats(MOCK_STATS);
       }
       setLoading(false);
@@ -70,7 +81,8 @@ function AdminDashboardContent() {
     { label: 'Monthly Revenue', value: `₹${(stats.monthlyRevenue / 100000).toFixed(1)}L`, change: '+8.2%', positive: true, icon: <IndianRupee size={22} />, bg: 'rgba(16,185,129,0.12)', color: '#10b981', sparkline: [95, 105, 112, 128, 118, 125, 135] },
     { label: 'Active Doctors', value: `${stats.activeDoctors}/${stats.totalDoctors}`, change: 'Online', positive: true, icon: <UserCheck size={22} />, bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', sparkline: [18, 20, 22, 24, 22, 24, 24] },
     { label: 'Occupancy Rate', value: `${stats.occupancyRate}%`, change: '+3%', positive: true, icon: <TrendingUp size={22} />, bg: 'rgba(236,72,153,0.12)', color: '#ec4899', sparkline: [65, 68, 72, 75, 78, 76, 80] },
-    { label: 'Pending Bills', value: stats.pendingBills.toString(), change: '-2', positive: false, icon: <Clock size={22} />, bg: 'rgba(239,68,68,0.12)', color: '#ef4444', sparkline: [20, 18, 15, 17, 14, 13, 12] },
+    { label: 'Active Follow-Ups', value: followUpStats ? String(followUpStats.upcoming) : '0', change: followUpStats ? `+${followUpStats.completed} done` : 'Online', positive: true, icon: <Clock size={22} />, bg: 'rgba(8,145,178,0.12)', color: '#0891b2', sparkline: [12, 14, 15, 18, 22, 20, 25] },
+    { label: 'Pending Bills', value: stats.pendingBills.toString(), change: '-2', positive: false, icon: <IndianRupee size={22} />, bg: 'rgba(239,68,68,0.12)', color: '#ef4444', sparkline: [20, 18, 15, 17, 14, 13, 12] },
   ] : [];
 
   const renderMiniSparkline = (data: number[], color: string) => {

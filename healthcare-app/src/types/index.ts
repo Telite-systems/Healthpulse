@@ -131,4 +131,44 @@ export interface Notification {
   type: 'info' | 'success' | 'warning' | 'error';
   time: string;
   read: boolean;
+  recipientId?: string;
+  recipientName?: string;
+  actionType?: string;
+  actionTargetId?: string;
 }
+
+export interface AuditEntry {
+  timestamp: string;
+  userId: string;
+  userName: string;
+  action: string;
+  previousValue?: string;
+  newValue?: string;
+}
+
+export interface FollowUp {
+  id: string;
+  patientId: string;
+  patientName: string;
+  doctorId: string;
+  doctorName: string;
+  department: string;
+  originalAppointmentId?: string;
+  followupType: 'Physical Visit' | 'Teleconsultation' | 'Routine Checkup' | 'Test Review' | 'Post-Operation Review' | 'Medication Review';
+  priority: 'Normal' | 'Important' | 'Urgent';
+  reason: string;
+  notes: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  status: 'Scheduled' | 'Accepted' | 'Reschedule Requested' | 'Completed' | 'Missed';
+  rescheduleRequest?: {
+    preferredDate: string;
+    preferredTime: string;
+    reason: string;
+    requestedAt: string;
+  };
+  auditTrail: AuditEntry[];
+  createdAt: string;
+  updatedAt: string;
+}
+

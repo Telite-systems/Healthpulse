@@ -181,12 +181,14 @@ function AppRoutes() {
         <Route path="doctor/patients"       element={<Navigate to="/dashboard" replace />} />
         <Route path="doctor/appointments"   element={<Navigate to="/dashboard" replace />} />
         <Route path="doctor/prescriptions"  element={<Navigate to="/dashboard" replace />} />
+        <Route path="doctor/followups"      element={<Navigate to="/dashboard" replace />} />
 
         {/* ── Patient sub-pages (tab links from PatientDashboard, just redirect to index) ── */}
         <Route path="patient/book"           element={<Navigate to="/dashboard" replace />} />
         <Route path="patient/records"        element={<Navigate to="/dashboard" replace />} />
         <Route path="patient/prescriptions"  element={<Navigate to="/dashboard" replace />} />
         <Route path="patient/notifications"  element={<Navigate to="/dashboard" replace />} />
+        <Route path="patient/followups"      element={<Navigate to="/dashboard" replace />} />
       </Route>
 
       {/* Doctor-specific full pages */}

@@ -17,6 +17,8 @@ from app.routes.dashboard import router as dashboard_router
 from app.routes.websocket import router as ws_router, event_generator
 from app.routes.signaling import router as signaling_router
 from app.routes.collections import create_collection_router
+from app.routes.followups import router as followups_router
+from app.services.reminder_scheduler import start_reminder_scheduler
 
 # ---- Logging Setup ----
 logging.basicConfig(
@@ -37,12 +39,15 @@ async def lifespan(app: FastAPI):
 
     # Start WebSocket event broadcaster in background
     event_task = asyncio.create_task(event_generator())
+    # Start reminder scheduler in background
+    reminder_task = asyncio.create_task(start_reminder_scheduler())
     logger.info("✅ Application ready!")
 
     yield
 
     # ---- SHUTDOWN ----
     event_task.cancel()
+    reminder_task.cancel()
     await database.disconnect()
     logger.info("👋 Application stopped.")
 
@@ -87,6 +92,7 @@ app.include_router(auth_router)
 app.include_router(dashboard_router)
 app.include_router(ws_router)
 app.include_router(signaling_router)  # ← Call signaling (per-user WebSocket)
+app.include_router(followups_router)
 
 # ---- Dynamic Collection CRUD Routes ----
 collection_configs = [

@@ -37,6 +37,9 @@ class ApiService {
   private getAuthHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
     };
     const token = localStorage.getItem('hp_auth_token');
     if (token) {
@@ -45,7 +48,7 @@ class ApiService {
     return headers;
   }
 
-  private async request<T>(method: string, endpoint: string, body?: any): Promise<ApiResponse<T>> {
+  async request<T>(method: string, endpoint: string, body?: any): Promise<ApiResponse<T>> {
     const start = Date.now();
     const url = `${API_BASE}${endpoint}`;
 

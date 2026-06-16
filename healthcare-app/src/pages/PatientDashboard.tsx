@@ -8,8 +8,9 @@ import {
   Calendar, FileText, Bell, Download, CheckCircle,
   Pill, Video, Phone, Activity, Heart, ChevronRight,
   Star, MessageSquare, AlertCircle, Thermometer, Loader2,
-  Filter, Search, Stethoscope, Trash2
+  Filter, Search, Stethoscope, Trash2, Clock
 } from 'lucide-react';
+import PatientFollowUpWidget from '../components/PatientFollowUpWidget';
 
 // Fallback data
 const FB_APPOINTMENTS: any[] = [];
@@ -55,7 +56,7 @@ interface BookingDoctor {
   availability: string;
 }
 
-type PatientTab = 'overview' | 'book' | 'records' | 'prescriptions' | 'notifications';
+type PatientTab = 'overview' | 'book' | 'records' | 'prescriptions' | 'notifications' | 'followups';
 
 export default function PatientDashboard() {
   const { user } = useAuth();
@@ -64,7 +65,7 @@ export default function PatientDashboard() {
   const [myAppointments, setMyAppointments] = useState(FB_APPOINTMENTS);
   const [myPrescriptions, setMyPrescriptions] = useState(FB_PRESCRIPTIONS);
   const [myRecords, setMyRecords] = useState(FB_RECORDS);
-  const [myNotifications, setMyNotifications] = useState(FB_NOTIFICATIONS);
+  const [myNotifications, setMyNotifications] = useState<any[]>(FB_NOTIFICATIONS);
   const [_loading, setLoading] = useState(true);
   const [bookingStep, setBookingStep] = useState(1);
   const [selectedDoctor, setSelectedDoctor] = useState<BookingDoctor | null>(null);
@@ -166,6 +167,8 @@ export default function PatientDashboard() {
             id: n.id || n._id, icon: n.type === 'error' || n.type === 'warning' ? '⚠️' : n.type === 'success' ? '✅' : '📢',
             title: n.title, desc: n.message, time: n.time || 'recently', read: n.read ?? false,
             patientName: n.patientName || n.patient || '',
+            actionType: n.actionType,
+            actionTargetId: n.actionTargetId,
           })));
         }
       } catch {
@@ -200,6 +203,7 @@ export default function PatientDashboard() {
     setBookingSaving(true);
     const aptData = {
       id: `APT${Date.now()}`,
+      patientId: user?.id || '',
       patientName: user?.name || 'Patient',
       doctorName: selectedDoctor.name,
       department: selectedDoctor.spec,
@@ -462,6 +466,7 @@ export default function PatientDashboard() {
           { key: 'book', icon: Calendar, label: 'Book Appointment' },
           { key: 'records', icon: FileText, label: 'Medical Records' },
           { key: 'prescriptions', icon: Pill, label: 'Prescriptions' },
+          { key: 'followups', icon: Clock, label: 'Follow-Ups' },
           { key: 'notifications', icon: Bell, label: 'Notifications' },
         ] as { key: PatientTab; icon: any; label: string }[]).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
@@ -922,11 +927,33 @@ export default function PatientDashboard() {
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{n.time}</span>
                 </div>
                 <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{n.desc}</p>
+                {n.actionType && (
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    style={{ marginTop: 10, padding: '4px 10px', fontSize: '0.75rem' }}
+                    onClick={async () => {
+                      try {
+                        await api.update('notifications', String(n.id), { read: true } as any);
+                        setMyNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
+                      } catch (err) {}
+                      if (n.actionType === 'view_followup' || n.actionType === 'review_reschedule') {
+                        setActiveTab('followups');
+                      }
+                    }}
+                  >
+                    View Follow-Up
+                  </button>
+                )}
               </div>
               {!n.read && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#0891b2', marginTop: 6, flexShrink: 0 }} />}
             </div>
           ))}
         </div>
+      )}
+
+      {/* ── FOLLOW-UPS ── */}
+      {activeTab === 'followups' && user && (
+        <PatientFollowUpWidget patientId={user.id} />
       )}
     </div>
   );

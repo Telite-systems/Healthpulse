@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import AnimatedPage from '../components/AnimatedPage';
 import DoctorPatientConsult from '../components/DoctorPatientConsult';
+import ScheduleFollowUpModal from '../components/ScheduleFollowUpModal';
+import DoctorFollowUpDashboard from '../components/DoctorFollowUpDashboard';
 
 
 // Fallback data used when backend is unreachable
@@ -45,7 +47,7 @@ const FALLBACK_VISITS: Record<string, any[]> = {
   ],
 };
 
-type DoctorTab = 'overview' | 'patients' | 'appointments' | 'prescriptions';
+type DoctorTab = 'overview' | 'patients' | 'appointments' | 'prescriptions' | 'followups';
 
 export default function DoctorDashboard() {
   const { user } = useAuth();
@@ -55,6 +57,9 @@ export default function DoctorDashboard() {
   const [appointments, setAppointments] = useState<any[]>(FALLBACK_APPOINTMENTS);
   const [prescriptions, setPrescriptions] = useState<any[]>(FALLBACK_PRESCRIPTIONS);
   const [_loading, setLoading] = useState(true);
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [followUpPatient, setFollowUpPatient] = useState<{ id: string; name: string } | null>(null);
+  const [followUpAptId, setFollowUpAptId] = useState<string | undefined>(undefined);
   const [saving, setSaving] = useState(false);
   const [prescriptionForm, setPrescriptionForm] = useState({ patient: '', medicines: '', dosage: '', duration: '', instructions: '' });
   const [showPrescForm, setShowPrescForm] = useState(false);
@@ -442,6 +447,7 @@ export default function DoctorDashboard() {
           { key: 'patients', icon: Users, label: 'My Patients' },
           { key: 'appointments', icon: Calendar, label: 'Appointments' },
           { key: 'prescriptions', icon: FileText, label: 'Prescriptions' },
+          { key: 'followups', icon: Clock, label: 'Follow-Ups' },
         ] as { key: DoctorTab; icon: any; label: string }[]).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
             display: 'flex', alignItems: 'center', gap: 8,
@@ -573,6 +579,9 @@ export default function DoctorDashboard() {
                             <Pill size={13} /> Prescribe
                           </button>
                           <button className="btn btn-secondary btn-sm" onClick={() => handleViewRecords(p)}><FileText size={13} /> Records</button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => { setFollowUpPatient({ id: p.id, name: p.name }); setFollowUpAptId(undefined); setShowFollowUpModal(true); }}>
+                            📅 Follow-Up
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -633,7 +642,21 @@ export default function DoctorDashboard() {
                                 </button>
                               </>
                             )}
-                            {!isPending && <button className="btn btn-secondary btn-sm"><Video size={13} /> Join</button>}
+                            {!isPending && (
+                              <>
+                                <button className="btn btn-secondary btn-sm"><Video size={13} /> Join</button>
+                                <button className="btn btn-secondary btn-sm" onClick={() => {
+                                  const pat = patients.find(p => p.name === apt.patient) ||
+                                              patients.find(p => p.name.toLowerCase().trim() === apt.patient?.toLowerCase().trim()) ||
+                                              patients.find(p => p.name.toLowerCase().includes(apt.patient?.toLowerCase()) || apt.patient?.toLowerCase().includes(p.name.toLowerCase()));
+                                  setFollowUpPatient({ id: apt.patientId || pat?.id || 'P001', name: apt.patient });
+                                  setFollowUpAptId(apt.id);
+                                  setShowFollowUpModal(true);
+                                }}>
+                                  📅 Follow-Up
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -749,6 +772,10 @@ export default function DoctorDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {activeTab === 'followups' && (
+        <DoctorFollowUpDashboard doctorId={doctorId} />
       )}
     </AnimatedPage>
 
@@ -976,6 +1003,19 @@ export default function DoctorDashboard() {
           </div>
         </div>
       </div>
+    )}
+
+    {showFollowUpModal && followUpPatient && (
+      <ScheduleFollowUpModal
+        open={showFollowUpModal}
+        onClose={() => { setShowFollowUpModal(false); setFollowUpPatient(null); }}
+        patientId={followUpPatient.id}
+        patientName={followUpPatient.name}
+        doctorId={doctorId}
+        doctorName={doctorName}
+        department={user?.department || ''}
+        originalAppointmentId={followUpAptId}
+      />
     )}
     </>
   );

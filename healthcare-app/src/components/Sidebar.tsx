@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Database, ArrowRightLeft, MessageSquare,
   BarChart3, Settings, Video, LogOut, ChevronLeft, ChevronRight, Heart,
-  Users, Calendar, FileText, Pill, Bell, Stethoscope, UserCog, Shield, HelpCircle
+  Users, Calendar, FileText, Pill, Bell, Stethoscope, UserCog, Shield, HelpCircle, Clock
 } from 'lucide-react';
 
 // ─── Role-based nav configurations ───────────────────────────────────────────
@@ -33,6 +33,7 @@ const doctorNav = [
     { to: '/dashboard/doctor/patients', icon: Users, text: 'My Patients' },
     { to: '/dashboard/doctor/appointments', icon: Calendar, text: 'Appointments' },
     { to: '/dashboard/doctor/prescriptions', icon: Pill, text: 'Prescriptions' },
+    { to: '/dashboard/doctor/followups', icon: Clock, text: 'Follow-Ups' },
   ]},
   { label: 'TOOLS', items: [
     { to: '/dashboard/chatbot', icon: MessageSquare, text: 'Chatbot Assistant' },
@@ -49,6 +50,7 @@ const patientNav = [
     { to: '/dashboard/patient/book', icon: Calendar, text: 'Book Appointment' },
     { to: '/dashboard/patient/records', icon: FileText, text: 'Medical Records' },
     { to: '/dashboard/patient/prescriptions', icon: Pill, text: 'Prescriptions' },
+    { to: '/dashboard/patient/followups', icon: Clock, text: 'Follow-Ups' },
   ]},
   { label: 'SUPPORT', items: [
     { to: '/dashboard/chatbot', icon: MessageSquare, text: 'Chatbot Assistant' },
