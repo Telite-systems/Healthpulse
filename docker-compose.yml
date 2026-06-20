@@ -7,13 +7,13 @@ services:
       dockerfile: Dockerfile
     container_name: healthpulse-backend
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     env_file:
       - ./healthcare-backend/.env
     environment:
       # Override CORS to include Docker frontend origin
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://localhost,http://localhost:80}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://localhost,http://localhost:80,https://telitesystems.online}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 15s
@@ -28,12 +28,29 @@ services:
     container_name: healthpulse-frontend
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "3000:3000"
     depends_on:
       backend:
         condition: service_started
       n8n:
+        condition: service_started
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: healthpulse-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./letsencrypt:/etc/letsencrypt
+      - ./certbot:/var/www/certbot
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
         condition: service_started
 
   n8n:

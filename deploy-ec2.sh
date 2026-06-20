@@ -69,7 +69,7 @@ JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
 # ---- CORS (EC2 IP + optional domain) ----
-CORS_ORIGINS=http://${EC2_IP},http://${EC2_IP}:80,http://${EC2_IP}:5678,http://localhost
+CORS_ORIGINS=http://${EC2_IP},http://${EC2_IP}:80,http://${EC2_IP}:5678,http://localhost,https://telitesystems.online
 
 # ---- Logging ----
 LOG_LEVEL=INFO
@@ -115,7 +115,7 @@ echo "🏥 Step 5: Running health checks..."
 
 # Backend health
 echo -n "  Backend API:  "
-if curl -sf http://localhost:8000/api/health > /dev/null 2>&1; then
+if curl -k -sf https://localhost/api/health > /dev/null 2>&1 || curl -sf http://localhost:8000/api/health > /dev/null 2>&1; then
   echo "✅ Healthy"
 else
   echo "⚠️  Starting up (may take a few more seconds)"
@@ -123,8 +123,16 @@ fi
 
 # Frontend
 echo -n "  Frontend:     "
-if curl -sf http://localhost:80 > /dev/null 2>&1; then
-  echo "✅ Serving on port 80"
+if curl -sf http://localhost:3000 > /dev/null 2>&1; then
+  echo "✅ Serving on port 3000"
+else
+  echo "⚠️  Starting up..."
+fi
+
+# Nginx Proxy
+echo -n "  Nginx Proxy:  "
+if curl -k -sL -f http://localhost > /dev/null 2>&1; then
+  echo "✅ Serving on ports 80/443"
 else
   echo "⚠️  Starting up..."
 fi

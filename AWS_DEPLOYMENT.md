@@ -200,26 +200,43 @@ docker compose up --build -d
 
 ---
 
-## Optional: Add HTTPS with Custom Domain
+## Production: Configure Let's Encrypt SSL with Custom Domain
 
-If you have a domain name:
+HealthPulse is configured with a dedicated NGINX reverse proxy container (`healthpulse-nginx`) mapping to ports `80` and `443`. On first start, it automatically generates a self-signed fallback certificate for `telitesystems.online` to ensure NGINX boots successfully, allowing NGINX to serve the webroot challenge immediately without failing to start.
+
+### Step 1 — Get Let's Encrypt SSL Certificate
+Install Certbot on your EC2 host machine and request the certificate using the **webroot** authenticator (the webroot path is mapped to `./certbot` in the project root):
 
 ```bash
-# 1. Point your domain A record to EC2 public IP
+# 1. Point your domain A record to the EC2 public IP
 
-# 2. Install Certbot
-sudo yum install -y certbot python3-certbot-nginx  # Amazon Linux
-# sudo apt install -y certbot python3-certbot-nginx  # Ubuntu
+# 2. Install Certbot on the host
+# Amazon Linux:
+sudo yum install -y certbot
+# Ubuntu:
+# sudo apt-get update && sudo apt-get install -y certbot
 
-# 3. Get SSL certificate
-sudo certbot --nginx -d yourdomain.com
+# 3. Request the certificate using webroot (pointing to the workspace certbot directory)
+# Replace /home/ec2-user/Healthpulse with your actual absolute project path
+sudo certbot certonly --webroot -w /home/ec2-user/Healthpulse/certbot -d telitesystems.online
 
-# 4. Update .env
-# CORS_ORIGINS=https://yourdomain.com
-# N8N_EDITOR_BASE_URL=https://n8n.yourdomain.com
+# 4. Copy the generated certs from the host system path to the relative ./letsencrypt directory
+sudo cp -R /etc/letsencrypt/* /home/ec2-user/Healthpulse/letsencrypt/
+sudo chown -R $USER:$USER /home/ec2-user/Healthpulse/letsencrypt/
 
-# 5. Rebuild
-docker compose up --build -d
+# 5. Reload NGINX to apply the production certificate
+docker compose exec nginx nginx -s reload
+```
+
+### Step 2 — Configure Auto-Renewal
+Let's Encrypt certificates are valid for 90 days. Set up a daily cron job on the host to automatically renew certificates and reload NGINX:
+
+```bash
+# Open crontab on the host
+crontab -e
+
+# Add the following line (runs daily at midnight)
+0 0 * * * certbot renew --webroot -w /home/ec2-user/Healthpulse/certbot --post-hook "cp -R /etc/letsencrypt/* /home/ec2-user/Healthpulse/letsencrypt/ && docker exec healthpulse-nginx nginx -s reload"
 ```
 
 ---
