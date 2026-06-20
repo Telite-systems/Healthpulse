@@ -4,7 +4,7 @@
 // ============================================
 
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, Check, RefreshCw, Eye, X, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, Check, RefreshCw, Eye, X } from 'lucide-react';
 import { followupApi } from '../services/followupApi';
 import type { FollowUp } from '../types';
 import { useToastContext } from '../context/ToastContext';
